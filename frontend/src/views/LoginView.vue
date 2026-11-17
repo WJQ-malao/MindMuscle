@@ -50,10 +50,16 @@ async function onSubmit() {
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('nickname', res.data.nickname)
     localStorage.setItem('role', res.data.role)
-    router.push('/')
+    router.push(isMobile() ? '/m/home' : '/')
+  } catch {
+    // 错误提示已由拦截器统一弹出
   } finally {
     loading.value = false
   }
+}
+
+function isMobile() {
+  return window.innerWidth < 768 || /Android|iPhone|Mobile/i.test(navigator.userAgent)
 }
 </script>
 

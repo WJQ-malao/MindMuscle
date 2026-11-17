@@ -44,6 +44,10 @@ export const dashboardApi = {
   overview: () => request.get('/dashboard/overview'),
 }
 
+export const adminApi = {
+  overview: () => request.get('/admin/overview'),
+}
+
 export const metricApi = {
   list: (days?: number) => request.get('/metrics', { params: { days } }),
   add: (data: { weightKg: number; bodyFat?: number; recordDate?: string }) => request.post('/metrics', data),

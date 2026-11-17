@@ -1,5 +1,48 @@
 <template>
-  <div>
+  <!-- ===== 管理员：平台运营视角 ===== -->
+  <div v-if="isAdmin">
+    <el-row :gutter="16">
+      <el-col :span="6">
+        <el-card shadow="hover"><div class="stat"><div class="label">注册用户</div>
+          <div class="value">{{ adminData.totalUsers ?? '-' }}</div></div></el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover"><div class="stat"><div class="label">训练打卡</div>
+          <div class="value">{{ adminData.totalCheckins ?? '-' }}</div></div></el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover"><div class="stat"><div class="label">生成计划</div>
+          <div class="value">{{ adminData.totalPlans ?? '-' }}</div></div></el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover"><div class="stat"><div class="label">知识文档</div>
+          <div class="value">{{ adminData.knowledgeFiles ?? '-' }}</div></div></el-card>
+      </el-col>
+    </el-row>
+
+    <el-card shadow="hover" style="margin-top: 16px">
+      <template #header>
+        <div class="admin-header">
+          <span>最近注册用户</span>
+          <router-link to="/knowledge" class="knowledge-link">📚 维护知识库 →</router-link>
+        </div>
+      </template>
+      <el-table :data="adminData.recentUsers ?? []" stripe>
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="username" label="用户名" />
+        <el-table-column prop="nickname" label="昵称" />
+        <el-table-column prop="role" label="角色" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.role === 'ADMIN' ? 'danger' : 'info'">{{ row.role }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="注册时间" width="180" />
+      </el-table>
+    </el-card>
+  </div>
+
+  <!-- ===== 普通用户：个人数据视角 ===== -->
+  <div v-else>
     <el-row :gutter="16">
       <el-col :span="6">
         <el-card shadow="hover"><div class="stat"><div class="label">当前体重</div>
@@ -44,8 +87,10 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as echarts from 'echarts'
-import { dashboardApi } from '../api'
+import { adminApi, dashboardApi } from '../api'
 
+const isAdmin = localStorage.getItem('role') === 'ADMIN'
+const adminData = ref<any>({})
 const trendRef = ref<HTMLElement>()
 const muscleRef = ref<HTMLElement>()
 const heatmapRef = ref<HTMLElement>()
@@ -114,6 +159,11 @@ function resize() {
 }
 
 onMounted(async () => {
+  if (isAdmin) {
+    const res: any = await adminApi.overview()
+    adminData.value = res.data
+    return
+  }
   const res: any = await dashboardApi.overview()
   const data = res.data
   latest.value = data.latestMetric ?? {}
@@ -136,6 +186,8 @@ onBeforeUnmount(() => {
 .stat .label { color: #999; font-size: 13px; }
 .stat .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
 .stat .unit { font-size: 13px; color: #999; font-weight: 400; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; }
+.knowledge-link { color: #409eff; text-decoration: none; font-size: 13px; }
 .chart { height: 300px; }
 .chart.heatmap { height: 220px; }
 </style>

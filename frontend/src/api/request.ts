@@ -11,7 +11,15 @@ request.interceptors.request.use((config) => {
 })
 
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // 后端统一返回 {code, msg, data}：HTTP 恒为 200，业务错误看 code
+    const body = response.data
+    if (body && typeof body === 'object' && 'code' in body && body.code !== 200) {
+      ElMessage.warning(body.msg || '请求失败')
+      return Promise.reject(new Error(body.msg || '请求失败'))
+    }
+    return body
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
