@@ -46,6 +46,9 @@ export const dashboardApi = {
 
 export const adminApi = {
   overview: () => request.get('/admin/overview'),
+  users: () => request.get('/admin/users'),
+  updateRoles: (userId: number, roles: string[]) =>
+    request.put(`/admin/users/${userId}/roles`, { roles }),
 }
 
 export const metricApi = {

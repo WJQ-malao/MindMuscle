@@ -4,16 +4,24 @@
       <div class="logo">🏋️ 智能健身系统</div>
       <el-menu :default-active="$route.path" router background-color="#1f2d3d" text-color="#bfcbd9"
                active-text-color="#409eff">
-        <el-menu-item index="/dashboard"><el-icon><DataLine /></el-icon>数据看板</el-menu-item>
-        <el-menu-item index="/chat"><el-icon><ChatDotRound /></el-icon>AI 教练</el-menu-item>
-        <el-menu-item index="/metrics"><el-icon><Odometer /></el-icon>身体数据</el-menu-item>
-        <el-menu-item index="/workout"><el-icon><Calendar /></el-icon>训练计划</el-menu-item>
-        <el-menu-item index="/knowledge" v-if="role === 'ADMIN'"><el-icon><FolderOpened /></el-icon>知识库管理</el-menu-item>
+        <!-- ===== 管理员：平台管理菜单 ===== -->
+        <template v-if="role === 'ADMIN'">
+          <el-menu-item index="/dashboard"><el-icon><DataLine /></el-icon>平台概览</el-menu-item>
+          <el-menu-item index="/admin/users"><el-icon><User /></el-icon>用户管理</el-menu-item>
+          <el-menu-item index="/knowledge"><el-icon><FolderOpened /></el-icon>知识库管理</el-menu-item>
+        </template>
+        <!-- ===== 普通用户：个人健身菜单 ===== -->
+        <template v-else>
+          <el-menu-item index="/dashboard"><el-icon><DataLine /></el-icon>数据看板</el-menu-item>
+          <el-menu-item index="/chat"><el-icon><ChatDotRound /></el-icon>AI 教练</el-menu-item>
+          <el-menu-item index="/metrics"><el-icon><Odometer /></el-icon>身体数据</el-menu-item>
+          <el-menu-item index="/workout"><el-icon><Calendar /></el-icon>训练计划</el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
     <el-container>
       <el-header class="header">
-        <span class="title">{{ $route.meta.title }}</span>
+        <span class="title">{{ pageTitle }}</span>
         <el-dropdown @command="onCommand">
           <span class="user">{{ nickname }} <el-icon><ArrowDown /></el-icon></span>
           <template #dropdown>
@@ -31,12 +39,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
 const router = useRouter()
 const nickname = ref(localStorage.getItem('nickname') || '用户')
 const role = ref(localStorage.getItem('role') || 'USER')
+const pageTitle = computed(() =>
+  role.value === 'ADMIN' && route.path === '/dashboard' ? '平台概览' : (route.meta.title as string),
+)
 
 function onCommand(cmd: string) {
   if (cmd === 'logout') {

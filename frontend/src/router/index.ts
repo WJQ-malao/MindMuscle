@@ -20,6 +20,7 @@ const router = createRouter({
         { path: 'metrics', component: () => import('../views/BodyMetricView.vue'), meta: { title: '身体数据' } },
         { path: 'workout', component: () => import('../views/WorkoutView.vue'), meta: { title: '训练计划' } },
         { path: 'knowledge', component: () => import('../views/KnowledgeView.vue'), meta: { title: '知识库管理', admin: true } },
+        { path: 'admin/users', component: () => import('../views/AdminUsersView.vue'), meta: { title: '用户管理', admin: true } },
       ],
     },
     {
