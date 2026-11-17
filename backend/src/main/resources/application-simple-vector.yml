@@ -1,0 +1,10 @@
+# 降级 profile：无 Docker/Milvus 时用本地 SimpleVectorStore 顶替
+# 激活方式: mvn spring-boot:run -Dspring-boot.run.profiles=local,simple-vector
+spring:
+  autoconfigure:
+    # 关闭 Milvus 自动配置（其客户端启动即连库，不关闭会导致应用无法启动）
+    exclude: org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+
+app:
+  simple-vector:
+    file: ./data/simple-vector.json

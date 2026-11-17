@@ -1,0 +1,23 @@
+# 密钥与本地配置
+backend/src/main/resources/application-local.yml
+.env
+
+# 构建产物
+target/
+*.jar
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+
+# 日志
+*.log
+
+# 本地向量库降级数据
+backend/data/

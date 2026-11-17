@@ -1,0 +1,91 @@
+version: '3.8'
+
+# Milvus 全家桶（Milvus 依赖 etcd 和 MinIO）+ MySQL
+# 一条命令启动: docker compose up -d
+# Milvus 首次启动需要 1-2 分钟初始化，等容器状态变为 healthy 再启动后端
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.14
+    container_name: fitness-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    container_name: fitness-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9001:9001"
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    image: milvusdb/milvus:v2.5.6
+    container_name: fitness-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # 本机已有 MySQL 8（端口 3306 被占用），数据库由本机承载：
+  # 手动执行 发版/2026-11-17/20261117000001_init_fitness_db.sql 即可。
+  # 如需改用容器 MySQL（比如换台干净机器），取消下面注释并把端口改为 "3307:3306" 避免冲突。
+  # mysql:
+  #   image: mysql:8.4
+  #   container_name: fitness-mysql
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root123456
+  #     TZ: Asia/Shanghai
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #     - ./发版/2026-11-17/20261117000001_init_fitness_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #   command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123456"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+
+volumes:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  mysql_data:
