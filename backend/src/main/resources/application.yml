@@ -23,6 +23,8 @@ spring:
         embedding-dimension: 1024
         index-type: IVF_FLAT
         metric-type: COSINE
+        # 首次启动自动创建 collection（Spring AI 默认 false，不设则首次插入报 collection 不存在）
+        initialize-schema: true
   servlet:
     multipart:
       max-file-size: 20MB

@@ -36,18 +36,20 @@ AI 能力挂在一个 ChatClient 上：
 
 ### 2. 初始化数据库
 
-本机已有 MySQL（推荐）：在 Navicat 中执行 `发版/2026-11-17/20261117000001_init_fitness_db.sql`，
+本机已有 MySQL（推荐）：在 Navicat 中执行 `发版/2026-11-17/20261117000001_init_fitness_db.sql`（RBAC 升级后还需执行 `20261117180001_rbac_upgrade.sql`），
 并在 `application-local.yml` 中把数据库密码改为本机 root 密码。
 
-### 3. 启动基础设施（Milvus）
+### 3. 启动基础设施（Milvus + MinIO）
 
 ```bash
+# 3.1 MinIO 对象存储（宿主机进程，数据目录 D:\minio\data）
+# minio.exe 从 https://dl.minio.org.cn/server/minio/release/windows-amd64/minio.exe 下载放到 D:\minio\
+D:\minio\minio.exe server D:\minio\data --address ":9000" --console-address ":9001"
+
+# 3.2 etcd + Milvus 容器（首次拉镜像约 1-2GB，已配置国内镜像加速）
 docker compose up -d
-```
 
-首次启动 Milvus 需要 1-2 分钟初始化，等容器 healthy：
-
-```bash
+# 3.3 等 Milvus 初始化完成（看到 healthy 即可，首次约 1-2 分钟）
 docker compose ps
 ```
 
@@ -60,10 +62,10 @@ docker compose ps
 
 ```bash
 cd backend
-# 已装 Docker（Milvus 可用）：标准模式
+# 标准模式（Milvus 向量库，需要步骤3的基础设施已启动）
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 
-# 未装 Docker：降级模式（本地 SimpleVectorStore 顶替 Milvus，功能可跑，检索质量弱，答辩需切回）
+# 无 Docker 的降级模式（本地 SimpleVectorStore，功能可跑，检索质量弱，答辩需切回）
 mvn spring-boot:run -Dspring-boot.run.profiles=local,simple-vector
 ```
 
@@ -91,16 +93,17 @@ npm run dev
 bs/
 ├── backend/                  # SpringBoot 后端
 │   └── src/main/java/com/fitness/ai/
-│       ├── config/           # ChatClient / Embedding / JWT / CORS 配置
+│       ├── config/           # ChatClient / Embedding / JWT / CORS / 向量库降级 配置
 │       ├── controller/       # REST 接口（含 SSE 流式对话）
 │       ├── service/          # 业务 + RAG 知识库服务
+│       ├── security/         # RBAC: @RequireRole注解 + AOP鉴权切面
 │       ├── tools/            # AI Agent 工具组（@Tool）
 │       ├── entity/mapper/    # MyBatis-Plus
 │       └── dto/              # 请求参数校验
-├── frontend/                 # Vue3 前端
+├── frontend/                 # Vue3 前端（PC + 移动端双端页面）
 ├── 发版/2026-11-17/           # 发版 SQL 脚本（按日期分目录，时间戳前缀命名）
 ├── docs/                      # 开发过程文档（日期-标题.md）
-└── docker-compose.yml         # Milvus + MySQL 一键启动
+└── docker-compose.yml         # etcd + Milvus 一键启动（MinIO 为宿主机进程，见README）
 ```
 
 ## 环境变量（可选覆盖）
