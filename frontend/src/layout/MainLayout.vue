@@ -8,7 +8,7 @@
         <el-menu-item index="/chat"><el-icon><ChatDotRound /></el-icon>AI 教练</el-menu-item>
         <el-menu-item index="/metrics"><el-icon><Odometer /></el-icon>身体数据</el-menu-item>
         <el-menu-item index="/workout"><el-icon><Calendar /></el-icon>训练计划</el-menu-item>
-        <el-menu-item index="/knowledge"><el-icon><FolderOpened /></el-icon>知识库管理</el-menu-item>
+        <el-menu-item index="/knowledge" v-if="role === 'ADMIN'"><el-icon><FolderOpened /></el-icon>知识库管理</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -36,6 +36,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const nickname = ref(localStorage.getItem('nickname') || '用户')
+const role = ref(localStorage.getItem('role') || 'USER')
 
 function onCommand(cmd: string) {
   if (cmd === 'logout') {

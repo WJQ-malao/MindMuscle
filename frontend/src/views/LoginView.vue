@@ -49,6 +49,7 @@ async function onSubmit() {
       : await authApi.login({ username: form.username, password: form.password })
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('nickname', res.data.nickname)
+    localStorage.setItem('role', res.data.role)
     router.push('/')
   } finally {
     loading.value = false
