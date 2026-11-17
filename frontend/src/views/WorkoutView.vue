@@ -1,46 +1,37 @@
 <template>
   <div>
     <el-card shadow="hover">
-      <template #header>我的训练计划</template>
-      <el-table :data="plans" v-loading="loading" stripe>
-        <el-table-column prop="title" label="计划名称" min-width="200" />
-        <el-table-column prop="goal" label="目标" width="100" />
-        <el-table-column prop="source" label="来源" width="80">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.source === 'AI' ? 'success' : 'info'">{{ row.source }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.status === 'ACTIVE' ? 'primary' : 'info'">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="110">
-          <template #default="{ row }">
-            <el-button size="small" @click="showItems(row)">查看明细</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-if="!loading && plans.length === 0" description="还没有训练计划，去 AI 教练页让 AI 帮你生成一个吧" />
-    </el-card>
+      <div class="toolbar">
+        <el-select v-model="currentPlanId" placeholder="选择训练计划" style="width: 320px" @change="loadItems">
+          <el-option v-for="p in plans" :key="p.id" :value="p.id"
+                     :label="`${p.title}（${p.source === 'AI' ? 'AI生成' : '手动创建'} · ${p.status === 'ACTIVE' ? '进行中' : '已归档'}）`" />
+        </el-select>
+        <el-tag v-if="currentPlan" :type="currentPlan.status === 'ACTIVE' ? 'primary' : 'info'" size="large">
+          {{ currentPlan.goal }}
+        </el-tag>
+      </div>
 
-    <el-dialog v-model="dialogVisible" :title="currentPlan?.title" width="720px">
-      <el-table :data="items" stripe max-height="480">
-        <el-table-column prop="dayOfWeek" label="训练日" width="90">
-          <template #default="{ row }">{{ dayNames[row.dayOfWeek] }}</template>
-        </el-table-column>
-        <el-table-column prop="exerciseName" label="动作" />
-        <el-table-column prop="muscleGroup" label="肌群" width="90" />
-        <el-table-column label="安排" width="130">
-          <template #default="{ row }">{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="90">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" text @click="openCheckin(row)">打卡</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-dialog>
+      <el-tabs v-if="items.length" v-model="day">
+        <el-tab-pane v-for="d in days" :key="d.value" :label="d.label" :name="String(d.value)">
+          <el-table :data="itemsByDay(d.value)" stripe>
+            <el-table-column prop="exerciseName" label="动作" min-width="160" />
+            <el-table-column prop="muscleGroup" label="肌群" width="90" />
+            <el-table-column label="安排" width="150">
+              <template #default="{ row }">{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="110">
+              <template #default="{ row }">
+                <el-button type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-if="!itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
+        </el-tab-pane>
+      </el-tabs>
+      <el-empty v-else-if="!loading" description="该计划还没有训练项">
+        <el-button type="primary" @click="$router.push('/chat')">去 AI 教练生成一个计划</el-button>
+      </el-empty>
+    </el-card>
 
     <el-dialog v-model="checkinVisible" title="训练打卡" width="420px">
       <el-form label-width="90px">
@@ -66,36 +57,47 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
+const day = ref(String(new Date().getDay() || 7))
+
 const plans = ref<WorkoutPlan[]>([])
 const items = ref<WorkoutItem[]>([])
 const loading = ref(false)
-const dialogVisible = ref(false)
+const currentPlanId = ref<number>()
 const checkinVisible = ref(false)
 const checkinSaving = ref(false)
-const currentPlan = ref<WorkoutPlan>()
 const currentItem = ref<WorkoutItem>()
 const checkinForm = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
+
+const currentPlan = computed(() => plans.value.find((p) => p.id === currentPlanId.value))
+const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
 
 async function load() {
   loading.value = true
   try {
     const res: any = await workoutApi.plans()
     plans.value = res.data
+    // 默认选中进行中的计划，和手机端"今天练什么"的体验一致
+    const active = res.data.find((p: WorkoutPlan) => p.status === 'ACTIVE') ?? res.data[0]
+    currentPlanId.value = active?.id
+    if (active) await loadItems()
   } finally {
     loading.value = false
   }
 }
 
-async function showItems(plan: WorkoutPlan) {
-  currentPlan.value = plan
-  const res: any = await workoutApi.items(plan.id)
+async function loadItems() {
+  if (!currentPlanId.value) {
+    items.value = []
+    return
+  }
+  const res: any = await workoutApi.items(currentPlanId.value)
   items.value = res.data
-  dialogVisible.value = true
 }
 
 function openCheckin(item: WorkoutItem) {
@@ -118,3 +120,7 @@ async function doCheckin() {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+</style>
