@@ -10,7 +10,7 @@ import com.fitness.ai.mapper.CheckinMapper;
 import com.fitness.ai.mapper.KnowledgeFileMapper;
 import com.fitness.ai.mapper.UserMapper;
 import com.fitness.ai.mapper.WorkoutPlanMapper;
-import com.fitness.ai.util.UserContext;
+import com.fitness.ai.security.RequireRole;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,9 +19,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 平台管理接口：仅管理员可用 */
+/** 平台管理接口：仅管理员可用（RBAC: admin:overview 权限点） */
 @RestController
 @RequestMapping("/api/admin")
+@RequireRole("ADMIN")
 public class AdminController {
 
     private final UserMapper userMapper;
@@ -40,7 +41,6 @@ public class AdminController {
     /** 平台概览：核心指标 + 最近注册用户 */
     @GetMapping("/overview")
     public Result<Map<String, Object>> overview() {
-        requireAdmin();
         Map<String, Object> result = new HashMap<>();
         result.put("totalUsers", userMapper.selectCount(null));
         result.put("totalCheckins", checkinMapper.selectCount(null));
@@ -53,11 +53,5 @@ public class AdminController {
                 .last("LIMIT 10"));
         result.put("recentUsers", recentUsers);
         return Result.ok(result);
-    }
-
-    private void requireAdmin() {
-        if (!"ADMIN".equals(UserContext.getRole())) {
-            throw new IllegalStateException("仅管理员可访问");
-        }
     }
 }

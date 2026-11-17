@@ -50,6 +50,7 @@ async function onSubmit() {
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('nickname', res.data.nickname)
     localStorage.setItem('role', res.data.role)
+    localStorage.setItem('roles', JSON.stringify(res.data.roles ?? []))
     router.push(isMobile() ? '/m/home' : '/')
   } catch {
     // 错误提示已由拦截器统一弹出

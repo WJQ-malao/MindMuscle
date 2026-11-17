@@ -29,7 +29,7 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
         try {
             Claims claims = jwtUtil.parse(header.substring(7));
-            UserContext.set(Long.valueOf(claims.getSubject()), claims.get("role", String.class));
+            UserContext.set(Long.valueOf(claims.getSubject()), jwtUtil.extractRoles(claims));
             return true;
         } catch (Exception e) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
