@@ -42,7 +42,7 @@ public class SimpleVectorStoreConfig {
         return store;
     }
 
-    /** 停机时持久化到本地 JSON，重启后知识库不丢 */
+    /** 停机时持久化到本地 JSON；也会被 KnowledgeService 在知识库变更后主动调用 */
     @PreDestroy
     public void persist() {
         if (store == null) return;

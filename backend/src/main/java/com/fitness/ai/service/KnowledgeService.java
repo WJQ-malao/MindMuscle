@@ -1,6 +1,7 @@
 package com.fitness.ai.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fitness.ai.config.SimpleVectorStoreConfig;
 import com.fitness.ai.entity.KnowledgeFile;
 import com.fitness.ai.mapper.KnowledgeFileMapper;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,10 +33,13 @@ public class KnowledgeService {
 
     private final VectorStore vectorStore;
     private final KnowledgeFileMapper knowledgeFileMapper;
+    private final ObjectProvider<SimpleVectorStoreConfig> simpleStoreProvider;
 
-    public KnowledgeService(VectorStore vectorStore, KnowledgeFileMapper knowledgeFileMapper) {
+    public KnowledgeService(VectorStore vectorStore, KnowledgeFileMapper knowledgeFileMapper,
+                            ObjectProvider<SimpleVectorStoreConfig> simpleStoreProvider) {
         this.vectorStore = vectorStore;
         this.knowledgeFileMapper = knowledgeFileMapper;
+        this.simpleStoreProvider = simpleStoreProvider;
     }
 
     public Map<String, Object> upload(MultipartFile file) {
@@ -62,6 +67,7 @@ public class KnowledgeService {
             record.setFileName(fileName);
             record.setChunkCount(chunks.size());
             knowledgeFileMapper.insert(record);
+            persistIfSimpleStore();
 
             log.info("知识库入库完成: {}, 切片数: {}", fileName, chunks.size());
             Map<String, Object> result = new HashMap<>();
@@ -87,6 +93,16 @@ public class KnowledgeService {
         vectorStore.delete(expression);
         knowledgeFileMapper.delete(new LambdaQueryWrapper<KnowledgeFile>()
                 .eq(KnowledgeFile::getFileName, fileName));
+        persistIfSimpleStore();
         log.info("知识库文件已删除: {}", fileName);
+    }
+
+    /**
+     * 降级模式（SimpleVectorStore）下知识库变更即落盘，
+     * 避免依赖停机钩子（进程被强杀时钩子不执行导致数据丢失）。
+     * Milvus 模式下该 Bean 不存在，自动跳过。
+     */
+    private void persistIfSimpleStore() {
+        simpleStoreProvider.ifAvailable(SimpleVectorStoreConfig::persist);
     }
 }

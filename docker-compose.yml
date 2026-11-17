@@ -1,6 +1,8 @@
 version: '3.8'
 
-# Milvus 全家桶（Milvus 依赖 etcd 和 MinIO）+ MySQL
+# Milvus 独立部署（etcd + Milvus，本地存储模式）
+# minio.address=localhost 时 Milvus 使用容器本地磁盘存储对象数据，
+# 无需 MinIO 容器（minio 官方镜像已从 Docker Hub 下架，避免外部依赖）。
 # 一条命令启动: docker compose up -d
 # Milvus 首次启动需要 1-2 分钟初始化，等容器状态变为 healthy 再启动后端
 
@@ -22,31 +24,14 @@ services:
       timeout: 20s
       retries: 3
 
-  minio:
-    # minio 官方已从 Docker Hub 下架镜像(quay.io 为官方现行仓库)
-    image: quay.io/minio/minio:RELEASE.2024-05-28T17-19-04Z
-    container_name: fitness-minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9001:9001"
-    volumes:
-      - minio_data:/minio_data
-    command: minio server /minio_data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
   milvus:
     image: milvusdb/milvus:v2.5.6
     container_name: fitness-milvus
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd:2379
-      MINIO_ADDRESS: minio:9000
+      # localhost = 本地磁盘存储模式（数据落在 milvus_data 卷的 /var/lib/milvus 下）
+      MINIO_ADDRESS: localhost:9000
     ports:
       - "19530:19530"
       - "9091:9091"
@@ -60,8 +45,6 @@ services:
       retries: 3
     depends_on:
       etcd:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
   # 本机已有 MySQL 8（端口 3306 被占用），数据库由本机承载：
@@ -87,6 +70,5 @@ services:
 
 volumes:
   etcd_data:
-  minio_data:
   milvus_data:
   mysql_data:
