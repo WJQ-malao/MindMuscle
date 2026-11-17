@@ -1,10 +1,10 @@
 version: '3.8'
 
-# Milvus 独立部署（etcd + Milvus，本地存储模式）
-# minio.address=localhost 时 Milvus 使用容器本地磁盘存储对象数据，
-# 无需 MinIO 容器（minio 官方镜像已从 Docker Hub 下架，避免外部依赖）。
-# 一条命令启动: docker compose up -d
-# Milvus 首次启动需要 1-2 分钟初始化，等容器状态变为 healthy 再启动后端
+# Milvus 独立部署（etcd 容器 + Milvus 容器 + 宿主机 MinIO 进程）
+# 说明：各 Docker 镜像站均无 minio 容器镜像（官方已下架 Docker Hub），
+# 因此 MinIO 以 Windows 原生进程运行（minio.exe server），数据目录在宿主机，
+# Milvus 容器通过 host.docker.internal:9000 访问。
+# MinIO 启动命令见 README。一条命令启动: docker compose up -d
 
 services:
   etcd:
@@ -30,8 +30,13 @@ services:
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd:2379
-      # localhost = 本地磁盘存储模式（数据落在 milvus_data 卷的 /var/lib/milvus 下）
-      MINIO_ADDRESS: localhost:9000
+      # MinIO 以 Windows 原生进程运行在宿主机(镜像站均无 minio 容器镜像)，
+      # host.docker.internal 为容器访问宿主机的专用域名
+      MINIO_ADDRESS: host.docker.internal:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "19530:19530"
       - "9091:9091"

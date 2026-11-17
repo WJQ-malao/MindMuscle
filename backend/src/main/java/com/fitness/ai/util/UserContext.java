@@ -30,6 +30,11 @@ public final class UserContext {
         return id;
     }
 
+    /** 不抛异常的探测：供上下文传播捕获时使用 */
+    public static Long peekUserId() {
+        return USER_ID.get();
+    }
+
     public static Set<String> getRoles() {
         Set<String> roles = ROLES.get();
         return roles == null ? Set.of() : roles;
