@@ -9,9 +9,15 @@
         <el-tag v-if="currentPlan" :type="currentPlan.status === 'ACTIVE' ? 'primary' : 'info'" size="large">
           {{ currentPlan.goal }}
         </el-tag>
+        <div class="toolbar-right">
+          <el-button @click="newPlanVisible = true">新建计划</el-button>
+          <el-button :type="editMode ? 'warning' : 'primary'" plain @click="editMode = !editMode">
+            {{ editMode ? '完成编辑' : '编辑计划' }}
+          </el-button>
+        </div>
       </div>
 
-      <el-tabs v-if="items.length" v-model="day">
+      <el-tabs v-if="items.length || editMode" v-model="day">
         <el-tab-pane v-for="d in days" :key="d.value" :label="d.label" :name="String(d.value)">
           <el-table :data="itemsByDay(d.value)" stripe>
             <el-table-column prop="exerciseName" label="动作" min-width="160" />
@@ -19,13 +25,21 @@
             <el-table-column label="安排" width="150">
               <template #default="{ row }">{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="110">
+            <el-table-column label="操作" :width="editMode ? 180 : 110">
               <template #default="{ row }">
-                <el-button type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
+                <template v-if="editMode">
+                  <el-button size="small" @click="openItemEdit(row)">编辑</el-button>
+                  <el-button type="danger" size="small" @click="removeItem(row)">删除</el-button>
+                </template>
+                <el-button v-else type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="!itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
+          <div v-if="editMode" class="day-actions">
+            <el-button type="primary" plain round size="small" @click="openItemAdd">＋ 添加动作</el-button>
+            <span v-if="!itemsByDay(d.value).length" class="rest-tip">这一天还没有安排动作</span>
+          </div>
+          <el-empty v-if="!editMode && !itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
         </el-tab-pane>
       </el-tabs>
       <el-empty v-else-if="!loading" description="该计划还没有训练项">
@@ -33,6 +47,54 @@
       </el-empty>
     </el-card>
 
+    <!-- 添加/编辑动作 -->
+    <el-dialog v-model="itemVisible" :title="editingItem ? '编辑动作' : '添加动作'" width="440px">
+      <el-form label-width="90px">
+        <el-form-item label="动作名称">
+          <el-input v-model="itemForm.exerciseName" placeholder="如：哑铃卧推" maxlength="100" />
+        </el-form-item>
+        <el-form-item label="肌群">
+          <el-select v-model="itemForm.muscleGroup" style="width: 100%">
+            <el-option v-for="m in muscleOptions" :key="m" :value="m" :label="m" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="训练日">
+          <el-select v-model="itemForm.dayOfWeek" style="width: 100%">
+            <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="itemForm.muscleGroup === '有氧' ? '时长(分钟)' : '每组次数'">
+          <el-input-number v-model="itemForm.reps" :min="1" :max="100" />
+        </el-form-item>
+        <el-form-item :label="itemForm.muscleGroup === '有氧' ? '组数' : '组数'">
+          <el-input-number v-model="itemForm.sets" :min="1" :max="30" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="itemVisible = false">取消</el-button>
+        <el-button type="primary" :loading="itemSaving" @click="saveItem">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新建计划 -->
+    <el-dialog v-model="newPlanVisible" title="新建训练计划" width="440px">
+      <el-form label-width="90px">
+        <el-form-item label="计划名称">
+          <el-input v-model="newPlanForm.title" placeholder="如：上肢力量强化" maxlength="200" />
+        </el-form-item>
+        <el-form-item label="目标">
+          <el-select v-model="newPlanForm.goal" style="width: 100%">
+            <el-option v-for="g in ['增肌', '减脂', '塑形', '力量', '耐力', '保持']" :key="g" :value="g" :label="g" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="newPlanVisible = false">取消</el-button>
+        <el-button type="primary" :loading="planSaving" @click="savePlan">创建</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 打卡 -->
     <el-dialog v-model="checkinVisible" title="训练打卡" width="420px">
       <el-form label-width="90px">
         <el-form-item label="动作">
@@ -58,17 +120,29 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
+const muscleOptions = ['胸', '背', '腿', '肩', '手臂', '核心', '有氧']
 const day = ref(String(new Date().getDay() || 7))
 
 const plans = ref<WorkoutPlan[]>([])
 const items = ref<WorkoutItem[]>([])
 const loading = ref(false)
 const currentPlanId = ref<number>()
+const editMode = ref(false)
+
+const itemVisible = ref(false)
+const itemSaving = ref(false)
+const editingItem = ref<WorkoutItem>()
+const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, sets: 4, reps: 10 })
+
+const newPlanVisible = ref(false)
+const planSaving = ref(false)
+const newPlanForm = reactive({ title: '', goal: '增肌' })
+
 const checkinVisible = ref(false)
 const checkinSaving = ref(false)
 const currentItem = ref<WorkoutItem>()
@@ -82,7 +156,6 @@ async function load() {
   try {
     const res: any = await workoutApi.plans()
     plans.value = res.data
-    // 默认选中进行中的计划，和手机端"今天练什么"的体验一致
     const active = res.data.find((p: WorkoutPlan) => p.status === 'ACTIVE') ?? res.data[0]
     currentPlanId.value = active?.id
     if (active) await loadItems()
@@ -99,6 +172,80 @@ async function loadItems() {
   const res: any = await workoutApi.items(currentPlanId.value)
   items.value = res.data
 }
+
+// ---- 动作添加/编辑 ----
+
+function openItemAdd() {
+  editingItem.value = undefined
+  itemForm.exerciseName = ''
+  itemForm.muscleGroup = '胸'
+  itemForm.dayOfWeek = Number(day.value)
+  itemForm.sets = 4
+  itemForm.reps = 10
+  itemVisible.value = true
+}
+
+function openItemEdit(row: WorkoutItem) {
+  editingItem.value = row
+  itemForm.exerciseName = row.exerciseName
+  itemForm.muscleGroup = row.muscleGroup
+  itemForm.dayOfWeek = row.dayOfWeek
+  itemForm.sets = row.sets
+  itemForm.reps = row.reps
+  itemVisible.value = true
+}
+
+async function saveItem() {
+  if (!itemForm.exerciseName.trim()) {
+    ElMessage.warning('请填写动作名称')
+    return
+  }
+  itemSaving.value = true
+  try {
+    if (editingItem.value) {
+      await workoutApi.updateItem(editingItem.value.id, { ...itemForm })
+      ElMessage.success('已保存')
+    } else {
+      await workoutApi.addItem(currentPlanId.value!, { ...itemForm })
+      ElMessage.success('已添加')
+    }
+    itemVisible.value = false
+    loadItems()
+  } finally {
+    itemSaving.value = false
+  }
+}
+
+async function removeItem(row: WorkoutItem) {
+  await ElMessageBox.confirm(`确定删除「${row.exerciseName}」吗？`, '提示', { type: 'warning' })
+  await workoutApi.removeItem(row.id)
+  ElMessage.success('已删除')
+  loadItems()
+}
+
+// ---- 新建计划 ----
+
+async function savePlan() {
+  if (!newPlanForm.title.trim()) {
+    ElMessage.warning('请填写计划名称')
+    return
+  }
+  planSaving.value = true
+  try {
+    const res: any = await workoutApi.createPlan({ ...newPlanForm })
+    ElMessage.success('计划已创建，开始往里面添加动作吧')
+    newPlanVisible.value = false
+    newPlanForm.title = ''
+    await load()
+    currentPlanId.value = res.data.id
+    editMode.value = true
+    await loadItems()
+  } finally {
+    planSaving.value = false
+  }
+}
+
+// ---- 打卡 ----
 
 function openCheckin(item: WorkoutItem) {
   currentItem.value = item
@@ -123,4 +270,7 @@ onMounted(load)
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.toolbar-right { margin-left: auto; display: flex; gap: 10px; }
+.day-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
+.rest-tip { color: #999; font-size: 12px; }
 </style>

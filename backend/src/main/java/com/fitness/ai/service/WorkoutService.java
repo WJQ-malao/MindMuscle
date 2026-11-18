@@ -42,8 +42,7 @@ public class WorkoutService {
                 .orderByAsc(WorkoutItem::getSort));
     }
 
-    /**
-     * 规则模板生成训练计划：具体动作编排由确定性规则完成，
+    /** 规则模板生成训练计划：具体动作编排由确定性规则完成，
      * 大模型只负责对话和触发，不参与数值与编排决策（护栏设计）。
      * 新计划创建时自动归档旧的进行中计划，保证同时只有一个 ACTIVE。
      */
@@ -161,6 +160,89 @@ public class WorkoutService {
                 .eq(Checkin::getUserId, userId)
                 .orderByDesc(Checkin::getId)
                 .last("LIMIT " + limit));
+    }
+
+    // ============ 手动编辑（Keep 式） ============
+
+    /** 手动创建空计划（来源 MANUAL），旧的进行中计划自动归档 */
+    @Transactional
+    public WorkoutPlan createManualPlan(Long userId, String title, String goal) {
+        List<WorkoutPlan> activePlans = planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
+                .eq(WorkoutPlan::getUserId, userId)
+                .eq(WorkoutPlan::getStatus, "ACTIVE"));
+        for (WorkoutPlan old : activePlans) {
+            old.setStatus("ARCHIVED");
+            planMapper.updateById(old);
+        }
+        WorkoutPlan plan = new WorkoutPlan();
+        plan.setUserId(userId);
+        plan.setTitle(title);
+        plan.setGoal(goal);
+        plan.setStatus("ACTIVE");
+        plan.setSource("MANUAL");
+        planMapper.insert(plan);
+        return plan;
+    }
+
+    /** 为计划的某一天添加动作 */
+    public WorkoutItem addItem(Long userId, Long planId, String exerciseName, String muscleGroup,
+                               int dayOfWeek, int sets, int reps) {
+        requireOwnedPlan(userId, planId);
+        WorkoutItem it = new WorkoutItem();
+        it.setPlanId(planId);
+        it.setExerciseName(exerciseName);
+        it.setMuscleGroup(muscleGroup);
+        it.setDayOfWeek(dayOfWeek);
+        it.setSets(sets);
+        it.setReps(reps);
+        Long maxSort = itemMapper.selectCount(new LambdaQueryWrapper<WorkoutItem>()
+                .eq(WorkoutItem::getPlanId, planId)
+                .eq(WorkoutItem::getDayOfWeek, dayOfWeek));
+        it.setSort(maxSort.intValue());
+        itemMapper.insert(it);
+        return it;
+    }
+
+    /** 修改动作（换动作/调组数次数/移到别的训练日） */
+    public WorkoutItem updateItem(Long userId, Long itemId, String exerciseName, String muscleGroup,
+                                  int dayOfWeek, int sets, int reps) {
+        WorkoutItem it = requireOwnedItem(userId, itemId);
+        it.setExerciseName(exerciseName);
+        it.setMuscleGroup(muscleGroup);
+        it.setDayOfWeek(dayOfWeek);
+        it.setSets(sets);
+        it.setReps(reps);
+        itemMapper.updateById(it);
+        return it;
+    }
+
+    /** 删除某个动作 */
+    public void deleteItem(Long userId, Long itemId) {
+        WorkoutItem it = requireOwnedItem(userId, itemId);
+        itemMapper.deleteById(it.getId());
+    }
+
+    private WorkoutPlan requireOwnedPlan(Long userId, Long planId) {
+        WorkoutPlan plan = planMapper.selectById(planId);
+        if (plan == null || !plan.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("计划不存在或无权操作");
+        }
+        return plan;
+    }
+
+    /** 带归属校验的明细查询（对外接口用） */
+    public List<WorkoutItem> listItemsChecked(Long userId, Long planId) {
+        requireOwnedPlan(userId, planId);
+        return listItems(planId);
+    }
+
+    private WorkoutItem requireOwnedItem(Long userId, Long itemId) {
+        WorkoutItem it = itemMapper.selectById(itemId);
+        if (it == null) {
+            throw new IllegalArgumentException("训练项不存在");
+        }
+        requireOwnedPlan(userId, it.getPlanId());
+        return it;
     }
 
     /** 供 AI 工具读取：用户当前计划 + 明细的文本摘要 */
