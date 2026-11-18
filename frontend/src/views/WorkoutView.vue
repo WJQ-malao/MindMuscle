@@ -337,8 +337,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
-.toolbar-right { margin-left: auto; display: flex; gap: 10px; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar-right { display: flex; gap: 10px; }
 .day-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 .rest-tip { color: #999; font-size: 12px; }
 </style>
