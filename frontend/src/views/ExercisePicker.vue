@@ -54,13 +54,13 @@
           {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `当前计划动作（${basket.length}）` }}
         </div>
         <div class="basket-list">
-          <div v-for="(b, i) in basket" :key="i" class="basket-item">
+          <div v-for="(b, i) in sortedBasket" :key="b.itemId ?? 'new-' + i" class="basket-item">
             <div class="basket-head">
               <span class="basket-name">
                 {{ b.name }}
                 <el-tag v-if="b.isNew" size="small" type="success" effect="plain" style="margin-left: 4px">新</el-tag>
               </span>
-              <el-button size="small" text type="danger" @click="basket.splice(i, 1)">移除</el-button>
+              <el-button size="small" text type="danger" @click="removeFromBasket(b)">移除</el-button>
             </div>
             <div class="basket-fields">
               <span>组数</span>
@@ -182,6 +182,12 @@ const filtered = computed(() =>
     (currentEquip.value === '全部' || e.equipment === currentEquip.value) &&
     (!keyword.value || e.name.includes(keyword.value))))
 
+/** 右栏按训练日排序展示（仅编辑模式有意义，新建模式保持挑选顺序） */
+const sortedBasket = computed(() =>
+  props.mode === 'add-to-plan'
+    ? [...basket.value].sort((a, b) => (a.dayOfWeek ?? 9) - (b.dayOfWeek ?? 9))
+    : basket.value)
+
 async function onOpen() {
   basket.value = []
   expandedTips.value = new Set()
@@ -261,6 +267,10 @@ function toggleTips(id: number) {
     next.add(id)
   }
   expandedTips.value = next
+}
+
+function removeFromBasket(b: BasketItem) {
+  basket.value = basket.value.filter((x) => x !== b)
 }
 
 function finish() {
