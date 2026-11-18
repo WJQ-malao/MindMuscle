@@ -10,8 +10,8 @@
           {{ currentPlan.goal }}
         </span>
         <div class="toolbar-right">
-          <!-- 有计划→编辑（打开动作选择器）；无计划→创建（同样先进选择器挑动作） -->
-          <template v-if="plans.length">
+          <!-- 有内容（进行中且有动作）→编辑；无计划或计划为空壳→创建 -->
+          <template v-if="plans.length && !(currentPlan?.status === 'ACTIVE' && !items.length)">
             <el-button type="primary" plain @click="openAddPicker">编辑计划</el-button>
           </template>
           <el-button v-else type="primary" @click="openNewPlanPicker">创建计划</el-button>
@@ -32,10 +32,6 @@
               </template>
             </el-table-column>
           </el-table>
-          <div class="day-actions">
-            <el-button type="primary" plain round size="small" @click="openAddPicker">＋ 添加动作</el-button>
-            <span v-if="!itemsByDay(d.value).length" class="rest-tip">这一天还没有安排动作</span>
-          </div>
           <el-empty v-if="!itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
         </el-tab-pane>
       </el-tabs>
@@ -43,8 +39,9 @@
         <el-button type="primary" @click="openNewPlanPicker">创建计划</el-button>
         <el-button @click="$router.push('/chat')">让 AI 帮你生成</el-button>
       </el-empty>
-      <el-empty v-else-if="!loading" description="该计划还没有训练项">
-        <el-button type="primary" @click="openAddPicker">添加动作</el-button>
+      <el-empty v-else-if="!loading" description="这个计划还没有动作，编辑添加或重新创建">
+        <el-button type="primary" plain @click="openAddPicker">编辑计划</el-button>
+        <el-button type="primary" @click="openNewPlanPicker">创建计划</el-button>
       </el-empty>
     </el-card>
 
@@ -267,6 +264,4 @@ onMounted(load)
   font-size: 14px; line-height: 1;
 }
 .goal-chip.archived { background: #f4f4f5; color: #909399; }
-.day-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
-.rest-tip { color: #999; font-size: 12px; }
 </style>
