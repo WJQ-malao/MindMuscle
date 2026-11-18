@@ -13,5 +13,11 @@ public class ExerciseLib {
     private Long id;
     private String name;
     private String muscleGroup;
+    /** 器械分类：杠铃/哑铃/器械/自重/有氧 */
+    private String equipment;
+    /** 动作要点（文本讲解） */
+    private String tips;
+    /** 插图地址（预留扩展） */
+    private String imageUrl;
     private Integer sort;
 }

@@ -75,6 +75,9 @@ export interface Exercise {
   id: number
   name: string
   muscleGroup: string
+  equipment?: string
+  tips?: string
+  imageUrl?: string
   sort: number
 }
 

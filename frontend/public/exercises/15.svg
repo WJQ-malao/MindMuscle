@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220"><rect width="220" height="220" fill="#ffffff"/><line x1="15" y1="188" x2="205" y2="188" stroke="#ececec" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="110" cy="62" r="13" fill="#34495e"/>
+    <line x1="110" y1="76" x2="104" y2="116" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <ellipse cx="110" cy="135" rx="34" ry="18" fill="#9b59b6" opacity="0.35"/>
+    <line x1="104" y1="116" x2="76" y2="148" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="76" y1="148" x2="78" y2="184" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="104" y1="116" x2="132" y2="148" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="132" y1="148" x2="134" y2="184" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="104" y1="84" x2="150" y2="80" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="150" y1="80" x2="146" y2="104" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <g transform="rotate(0 146 108)"><line x1="136" y1="108" x2="156" y2="108" stroke="#34495e" stroke-width="4"/><circle cx="136" cy="108" r="5.5" fill="#34495e"/><circle cx="156" cy="108" r="5.5" fill="#34495e"/></g></svg>

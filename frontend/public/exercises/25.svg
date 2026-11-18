@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220"><rect width="220" height="220" fill="#ffffff"/><line x1="15" y1="188" x2="205" y2="188" stroke="#ececec" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="110" cy="56" r="13" fill="#34495e"/>
+    <line x1="110" y1="70" x2="110" y2="122" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="110" y1="122" x2="104" y2="184" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="110" y1="122" x2="116" y2="184" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="110" y1="76" x2="58" y2="100" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="58" y1="100" x2="40" y2="92" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="110" y1="76" x2="162" y2="100" stroke="#34495e" stroke-width="7" stroke-linecap="round"/><line x1="162" y1="100" x2="180" y2="92" stroke="#34495e" stroke-width="7" stroke-linecap="round"/>
+    <ellipse cx="70" cy="92" rx="18" ry="12" fill="#f39c12" opacity="0.35"/><ellipse cx="150" cy="92" rx="18" ry="12" fill="#f39c12" opacity="0.35"/>
+    <g transform="rotate(0 36 88)"><line x1="26" y1="88" x2="46" y2="88" stroke="#34495e" stroke-width="4"/><circle cx="26" cy="88" r="5.5" fill="#34495e"/><circle cx="46" cy="88" r="5.5" fill="#34495e"/></g><g transform="rotate(0 184 88)"><line x1="174" y1="88" x2="194" y2="88" stroke="#34495e" stroke-width="4"/><circle cx="174" cy="88" r="5.5" fill="#34495e"/><circle cx="194" cy="88" r="5.5" fill="#34495e"/></g></svg>
