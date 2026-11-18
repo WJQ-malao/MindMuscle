@@ -10,10 +10,13 @@
           {{ currentPlan.goal }}
         </el-tag>
         <div class="toolbar-right">
-          <el-button @click="pickerVisible = true">新建计划</el-button>
-          <el-button :type="editMode ? 'warning' : 'primary'" plain @click="editMode = !editMode">
-            {{ editMode ? '完成编辑' : '编辑计划' }}
-          </el-button>
+          <!-- 有计划时只显示编辑；无计划时才显示新建（新建会使旧计划归档，避免误触） -->
+          <template v-if="plans.length">
+            <el-button :type="editMode ? 'warning' : 'primary'" plain @click="editMode = !editMode">
+              {{ editMode ? '完成编辑' : '编辑计划' }}
+            </el-button>
+          </template>
+          <el-button v-else type="primary" @click="openNewPlanPicker">新建计划</el-button>
         </div>
       </div>
 
@@ -42,8 +45,12 @@
           <el-empty v-if="!editMode && !itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
         </el-tab-pane>
       </el-tabs>
+      <el-empty v-else-if="!loading && !plans.length" description="还没有训练计划">
+        <el-button type="primary" @click="openNewPlanPicker">新建计划</el-button>
+        <el-button @click="$router.push('/chat')">让 AI 帮你生成</el-button>
+      </el-empty>
       <el-empty v-else-if="!loading" description="该计划还没有训练项">
-        <el-button type="primary" @click="$router.push('/chat')">去 AI 教练生成一个计划</el-button>
+        <el-button type="primary" @click="openAddPicker">添加动作</el-button>
       </el-empty>
     </el-card>
 
@@ -238,6 +245,11 @@ async function removeItem(row: WorkoutItem) {
 }
 
 // ---- 动作选择器：两种模式统一收口 ----
+
+function openNewPlanPicker() {
+  pickerMode.value = 'new-plan'
+  pickerVisible.value = true
+}
 
 function openAddPicker() {
   pickerMode.value = 'add-to-plan'
