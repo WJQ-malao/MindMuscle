@@ -14,16 +14,13 @@ spring:
           model: ${CHAT_MODEL:deepseek-chat}
           temperature: 0.7
     vectorstore:
-      milvus:
-        client:
-          host: ${MILVUS_HOST:localhost}
-          port: ${MILVUS_PORT:19530}
-        database-name: default
+      # 向量库切换开关：qdrant（默认，单容器轻量）/ milvus（重型，见 application-milvus.yml）
+      type: ${VECTOR_STORE_TYPE:qdrant}
+      qdrant:
+        host: ${QDRANT_HOST:localhost}
+        port: ${QDRANT_PORT:6334}
         collection-name: fitness_knowledge
-        embedding-dimension: 1024
-        index-type: IVF_FLAT
-        metric-type: COSINE
-        # 首次启动自动创建 collection（Spring AI 默认 false，不设则首次插入报 collection 不存在）
+        # 首次启动自动创建 collection
         initialize-schema: true
   servlet:
     multipart:

@@ -124,8 +124,9 @@ public class KnowledgeService {
 
     /** 按 file_name 元数据删除向量库中的切片（仅向量，不动登记记录） */
     private void deleteVectorsByFileName(String fileName) {
+        // 值直接传原始字符串即可，Milvus/Qdrant 的过滤器转换器会自动处理引号转义
         Filter.Expression expression = new FilterExpressionBuilder()
-                .eq("file_name", "'" + fileName.replace("'", "") + "'")
+                .eq("file_name", fileName)
                 .build();
         vectorStore.delete(expression);
         persistIfSimpleStore();

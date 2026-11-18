@@ -2,8 +2,11 @@
 #
 # 与开发环境的区别：
 #   - MySQL 改为容器，首次启动自动执行 发版/ 下全部 SQL 脚本
-#   - MinIO 改为容器（Linux 镜像站有 quay.io/minio/minio），Milvus 通过容器网络直连
+#   - 向量库用 Qdrant 单容器（默认），替代原 Milvus + etcd + MinIO 三件套，
+#     2核4G 服务器即可跑全套（原方案需 4核8G）
 #   - 新增 backend 与 frontend(Nginx) 两个服务，对外只暴露 80 端口
+#   - 如需切回 Milvus：backend 环境加 VECTOR_STORE_TYPE=milvus，
+#     并把本文件中的 qdrant 服务换回 Milvus 三件套编排（git 历史可找回）
 #
 # 使用方法：
 #   1. 服务器安装 Docker 与 docker compose 插件
@@ -11,7 +14,7 @@
 #   3. docker compose -f docker-compose.prod.yml up -d --build
 #   4. 浏览器访问 http://服务器公网IP ，注册账号即可使用
 #
-# 硬件要求：最低 4 核 8G（Milvus standalone 独占约 2-3G 内存，2G 机器跑不动）
+# 硬件要求：2核4G 起（全套约占用 2G 内存）；4G 以下不适用
 
 services:
   mysql:
@@ -39,64 +42,17 @@ services:
       retries: 10
     restart: unless-stopped
 
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: fitness-minio
-    command: server /data --address ":9000" --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+  qdrant:
+    # 版本与 Spring AI 1.0 内置的 qdrant-java-client 1.13.x 对齐，避免启动版本告警
+    image: qdrant/qdrant:v1.13.6
+    container_name: fitness-qdrant
     volumes:
-      - minio_data:/data
+      - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  etcd:
-    image: quay.io/coreos/etcd:v3.5.14
-    container_name: fitness-etcd
-    environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
-    volumes:
-      - etcd_data:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    restart: unless-stopped
-
-  milvus:
-    image: milvusdb/milvus:v2.5.6
-    container_name: fitness-milvus
-    command: ["milvus", "run", "standalone"]
-    environment:
-      ETCD_ENDPOINTS: etcd:2379
-      # 容器网络内直连 MinIO 服务（开发环境用的 host.docker.internal 仅 Windows 有效，此处不用）
-      MINIO_ADDRESS: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      COMMON_STORAGETYPE: minio
-    volumes:
-      - milvus_data:/var/lib/milvus
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      start_period: 90s
-      timeout: 20s
-      retries: 3
-    depends_on:
-      etcd:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      retries: 6
     restart: unless-stopped
 
   backend:
@@ -107,8 +63,8 @@ services:
       MYSQL_HOST: mysql
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 或环境中设置 MYSQL_PASSWORD}
-      MILVUS_HOST: milvus
-      MILVUS_PORT: 19530
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6334
       # ===== 以下为机密项，必须用真实值替换（建议写入服务器上的 .env 文件） =====
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?请设置 DEEPSEEK_API_KEY}
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:?请设置 SILICONFLOW_API_KEY}
@@ -120,7 +76,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      milvus:
+      qdrant:
         condition: service_healthy
     restart: unless-stopped
 
@@ -136,7 +92,5 @@ services:
 
 volumes:
   mysql_data:
-  minio_data:
-  etcd_data:
-  milvus_data:
+  qdrant_data:
   knowledge_data:

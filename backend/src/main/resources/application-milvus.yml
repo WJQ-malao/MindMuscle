@@ -1,0 +1,17 @@
+# Milvus profile：切回 Milvus 向量库（默认 Qdrant，见 application.yml）
+# 激活方式: mvn spring-boot:run -Dspring-boot.run.profiles=local,milvus
+# 需先启动 Milvus 基础设施: docker compose up -d（开发 compose 含完整 Milvus 编排时用）
+spring:
+  ai:
+    vectorstore:
+      type: milvus
+      milvus:
+        client:
+          host: ${MILVUS_HOST:localhost}
+          port: ${MILVUS_PORT:19530}
+        database-name: default
+        collection-name: fitness_knowledge
+        embedding-dimension: 1024
+        index-type: IVF_FLAT
+        metric-type: COSINE
+        initialize-schema: true

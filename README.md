@@ -6,7 +6,7 @@
 |---|---|
 | 后端 | Spring Boot 3.4 + Spring AI 1.0 + MyBatis-Plus + MySQL 8 |
 | 大模型 | DeepSeek（对话，官方 API）+ 硅基流动 BAAI/bge-m3（Embedding） |
-| 向量库 | Milvus 2.5（IVF_FLAT / COSINE / 1024 维） |
+| 向量库 | Qdrant 1.13（默认，单容器轻量部署）/ Milvus 2.5（可选，`milvus` profile 切回） |
 | 前端 | Vue 3 + TypeScript + Element Plus + ECharts |
 
 ## 架构
@@ -16,7 +16,7 @@
    │  HTTP / SSE
 SpringBoot 应用 (单进程)
    ├── 业务模块：用户 / 体测 / 训练计划 / 打卡
-   ├── RAG 模块：Tika 解析 → 切片 → bge-m3 向量化 → Milvus
+   ├── RAG 模块：Tika 解析 → 切片 → bge-m3 向量化 → 向量库（Qdrant 默认 / Milvus 可选）
    ├── Agent 模块：ChatClient + RetrievalAugmentationAdvisor + @Tool 工具组
    └── 可视化接口：统计聚合 → ECharts
 ```
@@ -39,19 +39,19 @@ AI 能力挂在一个 ChatClient 上：
 本机已有 MySQL（推荐）：在 Navicat 中执行 `发版/2026-11-17/20261117000001_init_fitness_db.sql`（RBAC 升级后还需执行 `20261117180001_rbac_upgrade.sql`），
 并在 `application-local.yml` 中把数据库密码改为本机 root 密码。
 
-### 3. 启动基础设施（Milvus + MinIO）
+### 3. 启动基础设施（Qdrant 向量库，单容器）
 
 ```bash
-# 3.1 MinIO 对象存储（宿主机进程，数据目录 D:\minio\data）
-# minio.exe 从 https://dl.minio.org.cn/server/minio/release/windows-amd64/minio.exe 下载放到 D:\minio\
-D:\minio\minio.exe server D:\minio\data --address ":9000" --console-address ":9001"
-
-# 3.2 etcd + Milvus 容器（首次拉镜像约 1-2GB，已配置国内镜像加速）
+# 3.1 启动 Qdrant（首次拉镜像约几百 MB，已配置国内镜像加速）
 docker compose up -d
 
-# 3.3 等 Milvus 初始化完成（看到 healthy 即可，首次约 1-2 分钟）
+# 3.2 等 Qdrant 就绪（看到 healthy 即可）
 docker compose ps
+# Web 控制台（可选）：http://localhost:6333/dashboard
 ```
+
+> 向量库默认为 **Qdrant**（单容器，内存 <1G）。如需切回 Milvus 三件套（etcd + Milvus + MinIO），
+> 用 `git show HEAD:docker-compose.yml` 找回原编排，并将后端以 `local,milvus` profile 启动（见步骤 5）。
 
 ### 4. 配置密钥
 
@@ -62,8 +62,11 @@ docker compose ps
 
 ```bash
 cd backend
-# 标准模式（Milvus 向量库，需要步骤3的基础设施已启动）
+# 标准模式（Qdrant 向量库，需要步骤3的基础设施已启动）
 mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# 切回 Milvus（需先启动 Milvus 三件套，见步骤3注释）
+mvn spring-boot:run -Dspring-boot.run.profiles=local,milvus
 
 # 无 Docker 的降级模式（本地 SimpleVectorStore，功能可跑，检索质量弱，答辩需切回）
 mvn spring-boot:run -Dspring-boot.run.profiles=local,simple-vector
@@ -103,7 +106,7 @@ bs/
 ├── frontend/                 # Vue3 前端（PC + 移动端双端页面）
 ├── 发版/2026-11-17/           # 发版 SQL 脚本（按日期分目录，时间戳前缀命名）
 ├── docs/                      # 开发过程文档（日期-标题.md）
-└── docker-compose.yml         # etcd + Milvus 一键启动（MinIO 为宿主机进程，见README）
+└── docker-compose.yml         # Qdrant 一键启动（默认向量库；Milvus 编排见 git 历史）
 ```
 
 ## 环境变量（可选覆盖）
@@ -114,4 +117,6 @@ bs/
 | `SILICONFLOW_API_KEY` | - | 硅基流动 Embedding key |
 | `CHAT_MODEL` | deepseek-chat | 对话模型 |
 | `MYSQL_HOST/PASSWORD` | localhost/root | 数据库连接 |
-| `MILVUS_HOST/PORT` | localhost/19530 | Milvus 连接 |
+| `VECTOR_STORE_TYPE` | qdrant | 向量库类型：qdrant（默认）/ milvus（需 milvus profile） |
+| `QDRANT_HOST/PORT` | localhost/6334 | Qdrant 连接 |
+| `MILVUS_HOST/PORT` | localhost/19530 | Milvus 连接（仅 milvus profile） |

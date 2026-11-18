@@ -1,59 +1,30 @@
-version: '3.8'
-
-# Milvus 独立部署（etcd 容器 + Milvus 容器 + 宿主机 MinIO 进程）
-# 说明：各 Docker 镜像站均无 minio 容器镜像（官方已下架 Docker Hub），
-# 因此 MinIO 以 Windows 原生进程运行（minio.exe server），数据目录在宿主机，
-# Milvus 容器通过 host.docker.internal:9000 访问。
-# MinIO 启动命令见 README。一条命令启动: docker compose up -d
+# Qdrant 向量库一键启动（单容器，默认向量库）
+# 说明：向量库已从 Milvus(etcd+Milvus+MinIO 三件套) 切换为 Qdrant 单容器，
+# 内存占用从 ~3G 降到 <1G，部署与排障都更简单。
+# 如需切回 Milvus（如答辩演示原版架构），见 backend/application-milvus.yml。
+# 一条命令启动: docker compose up -d
 
 services:
-  etcd:
-    image: quay.io/coreos/etcd:v3.5.14
-    container_name: fitness-etcd
-    environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
-    volumes:
-      - etcd_data:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  milvus:
-    image: milvusdb/milvus:v2.5.6
-    container_name: fitness-milvus
-    command: ["milvus", "run", "standalone"]
-    environment:
-      ETCD_ENDPOINTS: etcd:2379
-      # MinIO 以 Windows 原生进程运行在宿主机(镜像站均无 minio 容器镜像)，
-      # host.docker.internal 为容器访问宿主机的专用域名
-      MINIO_ADDRESS: host.docker.internal:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+  qdrant:
+    # 版本与 Spring AI 1.0 内置的 qdrant-java-client 1.13.x 对齐，避免启动版本告警
+    image: qdrant/qdrant:v1.13.6
+    container_name: fitness-qdrant
     ports:
-      - "19530:19530"
-      - "9091:9091"
+      # gRPC：后端 Spring AI 客户端使用
+      - "6334:6334"
+      # REST + Web Dashboard：浏览器访问 http://localhost:6333/dashboard
+      - "6333:6333"
     volumes:
-      - milvus_data:/var/lib/milvus
+      - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      start_period: 90s
-      timeout: 20s
-      retries: 3
-    depends_on:
-      etcd:
-        condition: service_healthy
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
 
   # 本机已有 MySQL 8（端口 3306 被占用），数据库由本机承载：
-  # 手动执行 发版/2026-11-17/20261117000001_init_fitness_db.sql 即可。
+  # 手动执行 发版/ 下各日期目录的 SQL 脚本（按时间戳顺序）即可。
   # 如需改用容器 MySQL（比如换台干净机器），取消下面注释并把端口改为 "3307:3306" 避免冲突。
   # mysql:
   #   image: mysql:8.4
@@ -74,6 +45,5 @@ services:
   #     retries: 10
 
 volumes:
-  etcd_data:
-  milvus_data:
+  qdrant_data:
   mysql_data:

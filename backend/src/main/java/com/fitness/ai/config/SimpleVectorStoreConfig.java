@@ -17,8 +17,8 @@ import java.io.File;
 /**
  * 降级方案：未装 Docker / Milvus 不可用时，用 Spring AI 自带的本地向量库顶替。
  * 激活方式：-Dspring-boot.run.profiles=local,simple-vector
- * 与 Milvus 的差异：内存计算余弦相似度，无向量索引，数据量大时检索变慢，
- * 仅用于开发期验证 RAG 链路；正式环境（答辩演示）必须切回 Milvus。
+ * 与 Qdrant/Milvus 的差异：内存计算余弦相似度，无向量索引，数据量大时检索变慢，
+ * 仅用于开发期验证 RAG 链路；正式环境（答辩演示）必须切回容器向量库。
  */
 @Configuration
 @Profile("simple-vector")

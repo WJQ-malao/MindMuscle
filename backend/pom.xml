@@ -51,10 +51,21 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
         </dependency>
-        <!-- Spring AI: Milvus 向量库 -->
+        <!-- Spring AI: Milvus 向量库（可选，用 milvus profile 激活） -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-milvus</artifactId>
+        </dependency>
+        <!-- Spring AI: Qdrant 向量库（默认，单容器轻量部署） -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
+        </dependency>
+        <!-- Qdrant gRPC 客户端需要 protobuf-java 3.25+（Milvus 传递引入的 3.24.0 缺 MapFieldReflectionAccessor，此处显式对齐） -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.25.3</version>
         </dependency>
         <!-- Spring AI 1.0 GA: RAG 检索组件拆分为独立模块 -->
         <dependency>
