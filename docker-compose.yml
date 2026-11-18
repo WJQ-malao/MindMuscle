@@ -17,10 +17,12 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      # qdrant 镜像无 curl/wget，改用 bash 内建 /dev/tcp 做端口探活
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 6
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   # 本机已有 MySQL 8（端口 3306 被占用），数据库由本机承载：
