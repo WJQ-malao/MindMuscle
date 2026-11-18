@@ -353,4 +353,22 @@ function finish() {
 .basket-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .basket-name { font-weight: 600; font-size: 14px; }
 .basket-fields { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: #888; font-size: 12px; }
+
+/* 移动端适配（手机微信/窄屏）：三栏纵向堆叠，导航横向滑动 */
+@media (max-width: 768px) {
+  :deep(.el-dialog__body) { max-height: 72vh; overflow-y: auto; }
+  .picker-body { flex-direction: column; gap: 10px; min-height: auto; }
+  .group-nav {
+    width: 100%; display: flex; overflow-x: auto; flex-shrink: 0;
+    border-right: none; border-bottom: 1px solid #f0f0f0; padding-bottom: 6px;
+  }
+  .group-item { white-space: nowrap; margin-right: 6px; padding: 8px 12px; font-size: 14px; flex-shrink: 0; }
+  .exercise-grid { grid-template-columns: 1fr; max-height: 38vh; }
+  .basket-panel {
+    width: 100%; border-left: none; border-top: 1px solid #f0f0f0;
+    padding-left: 0; padding-top: 10px;
+  }
+  .basket-list { max-height: 24vh; }
+  .manual-add { flex-wrap: wrap; }
+}
 </style>
