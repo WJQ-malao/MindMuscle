@@ -16,7 +16,7 @@
               {{ editMode ? '完成编辑' : '编辑计划' }}
             </el-button>
           </template>
-          <el-button v-else type="primary" @click="openNewPlanPicker">新建计划</el-button>
+          <el-button v-else type="primary" @click="openNewPlanPicker">创建计划</el-button>
         </div>
       </div>
 
@@ -46,7 +46,7 @@
         </el-tab-pane>
       </el-tabs>
       <el-empty v-else-if="!loading && !plans.length" description="还没有训练计划">
-        <el-button type="primary" @click="openNewPlanPicker">新建计划</el-button>
+        <el-button type="primary" @click="openNewPlanPicker">创建计划</el-button>
         <el-button @click="$router.push('/chat')">让 AI 帮你生成</el-button>
       </el-empty>
       <el-empty v-else-if="!loading" description="该计划还没有训练项">

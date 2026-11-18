@@ -3,7 +3,7 @@
     <div class="m-header">
       <h3 class="m-title">🏋️ 训练计划</h3>
       <div class="m-actions">
-        <el-button size="small" @click="pickerVisible = true">新建计划</el-button>
+        <el-button size="small" @click="pickerVisible = true">创建计划</el-button>
         <el-button v-if="activePlan" size="small" plain
                    :type="editMode ? 'warning' : 'primary'" @click="editMode = !editMode">
           {{ editMode ? '完成' : '编辑' }}
@@ -39,7 +39,7 @@
     </el-card>
     <el-card v-else shadow="never" class="m-card">
       <el-empty description="还没有训练计划">
-        <el-button type="primary" round @click="pickerVisible = true">新建计划</el-button>
+        <el-button type="primary" round @click="pickerVisible = true">创建计划</el-button>
         <el-button type="primary" round plain @click="$router.push('/m/chat')">让 AI 帮你生成</el-button>
       </el-empty>
     </el-card>
