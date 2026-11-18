@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -73,7 +74,7 @@ public class WorkoutController {
     @PostMapping("/checkins")
     public Result<Checkin> checkin(@Valid @RequestBody CheckinRequest request) {
         return Result.ok(workoutService.checkin(
-                UserContext.getUserId(), request.itemId(), request.setsDone(),
+                UserContext.getUserId(), request.itemId(), request.setNo(),
                 request.repsDone(), request.weightUsed()));
     }
 
@@ -82,16 +83,16 @@ public class WorkoutController {
         return Result.ok(workoutService.recentCheckins(UserContext.getUserId(), 10));
     }
 
-    /** 今天已打卡的动作ID（打卡状态展示） */
+    /** 今天已打卡的"动作ID→已打组号列表"（按组打卡状态展示） */
     @GetMapping("/checkins/today")
-    public Result<List<Long>> todayChecked() {
-        return Result.ok(workoutService.todayCheckedItemIds(UserContext.getUserId()));
+    public Result<Map<Long, List<Integer>>> todayChecked() {
+        return Result.ok(workoutService.todayCheckedSets(UserContext.getUserId()));
     }
 
-    /** 撤销今天某动作的打卡（切换为未打卡） */
-    @DeleteMapping("/checkins/today/{itemId}")
-    public Result<String> undoToday(@PathVariable Long itemId) {
-        workoutService.undoTodayCheckin(UserContext.getUserId(), itemId);
-        return Result.ok("已切换为未打卡");
+    /** 撤销今天某动作某一组的打卡 */
+    @DeleteMapping("/checkins/today/{itemId}/{setNo}")
+    public Result<String> undoSet(@PathVariable Long itemId, @PathVariable Integer setNo) {
+        workoutService.undoSetCheckin(UserContext.getUserId(), itemId, setNo);
+        return Result.ok("已撤销该组打卡");
     }
 }

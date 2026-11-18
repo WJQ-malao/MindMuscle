@@ -16,15 +16,15 @@ public interface StatsMapper {
             "FROM body_metric WHERE user_id = #{userId} ORDER BY record_date ASC LIMIT #{limit}")
     List<Map<String, Object>> weightTrend(@Param("userId") Long userId, @Param("limit") int limit);
 
-    /** 打卡热力图：近 6 个月每天的打卡次数 */
-    @Select("SELECT checkin_date AS date, COUNT(*) AS count FROM checkin " +
+    /** 打卡热力图：近 6 个月每天训练过的动作数（按组打卡，一行=一组，按动作去重） */
+    @Select("SELECT checkin_date AS date, COUNT(DISTINCT item_id) AS count FROM checkin " +
             "WHERE user_id = #{userId} AND checkin_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) " +
             "GROUP BY checkin_date")
     List<Map<String, Object>> checkinHeatmap(@Param("userId") Long userId);
 
-    /** 肌群容量分布：总容量 = 组数 x 次数 x 重量 */
+    /** 肌群容量分布：按组打卡后每行=一组，容量 = Σ(次数 x 重量) */
     @Select("SELECT i.muscle_group AS muscle, " +
-            "SUM(c.sets_done * c.reps_done * COALESCE(NULLIF(c.weight_used, 0), 1)) AS volume " +
+            "SUM(c.reps_done * COALESCE(NULLIF(c.weight_used, 0), 1)) AS volume " +
             "FROM checkin c JOIN workout_item i ON c.item_id = i.id " +
             "WHERE c.user_id = #{userId} GROUP BY i.muscle_group")
     List<Map<String, Object>> muscleCapacity(@Param("userId") Long userId);

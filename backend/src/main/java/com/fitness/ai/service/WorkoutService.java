@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class WorkoutService {
@@ -129,26 +130,33 @@ public class WorkoutService {
         return it;
     }
 
+    /**
+     * 按组打卡：一个记录 = 某动作的某一组。
+     * 同组重复打卡视为修改该组数据（次数/重量）。
+     */
     @Transactional
-    public Checkin checkin(Long userId, Long itemId, Integer setsDone, Integer repsDone, Double weightUsed) {
-        WorkoutItem item = itemMapper.selectById(itemId);
-        if (item == null) {
-            throw new IllegalArgumentException("训练项不存在");
+    public Checkin checkin(Long userId, Long itemId, int setNo, int repsDone, Double weightUsed) {
+        WorkoutItem item = requireOwnedItem(userId, itemId);
+        if (setNo < 1 || setNo > item.getSets()) {
+            throw new IllegalArgumentException(
+                    "组序号超出计划范围（「" + item.getExerciseName() + "」计划为 " + item.getSets() + " 组）");
         }
-        WorkoutPlan plan = planMapper.selectById(item.getPlanId());
-        if (plan == null || !plan.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("无权操作该训练项");
-        }
-        if (setsDone == null || setsDone < 1 || setsDone > 30) {
-            throw new IllegalArgumentException("组数必须在 1-30 之间");
-        }
-        if (repsDone == null || repsDone < 1 || repsDone > 100) {
-            throw new IllegalArgumentException("次数必须在 1-100 之间");
+        Checkin existing = checkinMapper.selectOne(new LambdaQueryWrapper<Checkin>()
+                .eq(Checkin::getUserId, userId)
+                .eq(Checkin::getItemId, itemId)
+                .eq(Checkin::getCheckinDate, LocalDate.now())
+                .eq(Checkin::getSetNo, setNo));
+        if (existing != null) {
+            existing.setRepsDone(repsDone);
+            existing.setWeightUsed(weightUsed == null ? 0 : weightUsed);
+            checkinMapper.updateById(existing);
+            return existing;
         }
         Checkin checkin = new Checkin();
         checkin.setUserId(userId);
         checkin.setItemId(itemId);
-        checkin.setSetsDone(setsDone);
+        checkin.setSetNo(setNo);
+        checkin.setSetsDone(setNo);
         checkin.setRepsDone(repsDone);
         checkin.setWeightUsed(weightUsed == null ? 0 : weightUsed);
         checkin.setCheckinDate(LocalDate.now());
@@ -163,24 +171,22 @@ public class WorkoutService {
                 .last("LIMIT " + limit));
     }
 
-    /** 今天已打卡的动作ID列表（用于打卡状态切换展示） */
-    public List<Long> todayCheckedItemIds(Long userId) {
+    /** 今天已打卡的"动作→已打组号列表"映射（按组打卡状态展示） */
+    public Map<Long, List<Integer>> todayCheckedSets(Long userId) {
         return checkinMapper.selectList(new LambdaQueryWrapper<Checkin>()
                         .eq(Checkin::getUserId, userId)
-                        .eq(Checkin::getCheckinDate, LocalDate.now())
-                        .select(Checkin::getItemId)).stream()
-                .map(Checkin::getItemId)
-                .distinct()
-                .toList();
+                        .eq(Checkin::getCheckinDate, LocalDate.now())).stream()
+                .collect(Collectors.groupingBy(Checkin::getItemId,
+                        Collectors.mapping(Checkin::getSetNo, Collectors.toList())));
     }
 
-    /** 撤销今天某个动作的打卡（切换为未打卡） */
-    @Transactional
-    public void undoTodayCheckin(Long userId, Long itemId) {
+    /** 撤销某一组的打卡 */
+    public void undoSetCheckin(Long userId, Long itemId, int setNo) {
         checkinMapper.delete(new LambdaQueryWrapper<Checkin>()
                 .eq(Checkin::getUserId, userId)
                 .eq(Checkin::getItemId, itemId)
-                .eq(Checkin::getCheckinDate, LocalDate.now()));
+                .eq(Checkin::getCheckinDate, LocalDate.now())
+                .eq(Checkin::getSetNo, setNo));
     }
 
     // ============ 手动编辑（Keep 式） ============

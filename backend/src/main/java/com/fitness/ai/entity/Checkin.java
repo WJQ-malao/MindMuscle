@@ -16,6 +16,9 @@ public class Checkin {
     private Long id;
     private Long userId;
     private Long itemId;
+    /** 第几组（按组打卡） */
+    private Integer setNo;
+    /** 冗余字段（历史兼容），含义同 set_no */
     private Integer setsDone;
     private Integer repsDone;
     /** 使用的重量（kg），自重训练为 0 */

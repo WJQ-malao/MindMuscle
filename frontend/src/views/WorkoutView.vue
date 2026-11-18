@@ -33,11 +33,24 @@
                 {{ row.weightKg ? row.weightKg + 'kg · ' : '' }}{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="110">
+            <el-table-column label="打卡" width="230">
               <template #default="{ row }">
-                <el-button v-if="checkedToday.has(row.id)" type="danger" plain size="small"
-                           @click="undoCheckin(row)">已打卡</el-button>
-                <el-button v-else type="success" size="small" @click="openCheckin(row)">打卡</el-button>
+                <!-- 力量动作：按组打卡，组号格子逐个点亮 -->
+                <template v-if="row.muscleGroup !== '有氧'">
+                  <span v-for="i in row.sets" :key="i"
+                        class="set-chip" :class="{ done: isSetDone(row.id, i) }"
+                        :title="isSetDone(row.id, i) ? `第${i}组已完成，点击撤销` : `打卡第${i}组`"
+                        @click="onSetChip(row, i)">
+                    {{ isSetDone(row.id, i) ? '✓' : i }}
+                  </span>
+                  <span class="set-progress">{{ doneCount(row.id) }}/{{ row.sets }}</span>
+                </template>
+                <!-- 有氧动作：整项一次打卡 -->
+                <template v-else>
+                  <el-button v-if="isSetDone(row.id, 1)" type="danger" plain size="small"
+                             @click="undoSet(row, 1)">已打卡</el-button>
+                  <el-button v-else type="success" size="small" @click="openCheckin(row, 1)">打卡</el-button>
+                </template>
               </template>
             </el-table-column>
           </el-table>
@@ -82,16 +95,13 @@
       </template>
     </el-dialog>
 
-    <!-- 打卡 -->
-    <el-dialog v-model="checkinVisible" title="训练打卡" width="420px">
+    <!-- 打卡（某一组） -->
+    <el-dialog v-model="checkinVisible" title="组打卡" width="420px">
       <el-form label-width="90px">
         <el-form-item label="动作">
-          <span>{{ currentItem?.exerciseName }}</span>
+          <span>{{ currentItem?.exerciseName }} · 第 {{ checkinForm.setNo }} 组</span>
         </el-form-item>
-        <el-form-item label="完成组数">
-          <el-input-number v-model="checkinForm.setsDone" :min="1" :max="30" />
-        </el-form-item>
-        <el-form-item label="每组次数">
+        <el-form-item label="完成次数">
           <el-input-number v-model="checkinForm.repsDone" :min="1" :max="100" />
         </el-form-item>
         <el-form-item label="重量 (kg)">
@@ -100,7 +110,7 @@
       </el-form>
       <template #footer>
         <el-button @click="checkinVisible = false">取消</el-button>
-        <el-button type="primary" :loading="checkinSaving" @click="doCheckin">确认打卡</el-button>
+        <el-button type="success" :loading="checkinSaving" @click="doCheckin">确认打卡</el-button>
       </template>
     </el-dialog>
   </div>
@@ -131,7 +141,7 @@ const newPlanForm = reactive({ title: '', goal: '增肌', daysPerWeek: 4 })
 const checkinVisible = ref(false)
 const checkinSaving = ref(false)
 const currentItem = ref<WorkoutItem>()
-const checkinForm = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
+const checkinForm = reactive({ setNo: 1, repsDone: 10, weightUsed: 0 })
 
 const currentPlan = computed(() => plans.value.find((p) => p.id === currentPlanId.value))
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
@@ -161,12 +171,29 @@ async function loadItems() {
   await loadCheckedToday()
 }
 
-/** 今天已打卡的动作ID集合（打卡/已打卡状态切换） */
-const checkedToday = ref<Set<number>>(new Set())
+/** 今天已打卡的"动作ID→已打组号列表"（按组打卡状态） */
+const checkedToday = ref<Record<number, number[]>>({})
+
+function isSetDone(itemId: number, setNo: number) {
+  return (checkedToday.value[itemId] ?? []).includes(setNo)
+}
+
+function doneCount(itemId: number) {
+  return (checkedToday.value[itemId] ?? []).length
+}
 
 async function loadCheckedToday() {
   const res: any = await workoutApi.todayChecked()
-  checkedToday.value = new Set(res.data ?? [])
+  checkedToday.value = res.data ?? {}
+}
+
+/** 组格子点击：已完成→确认撤销；未完成→打卡弹窗 */
+function onSetChip(row: WorkoutItem, setNo: number) {
+  if (isSetDone(row.id, setNo)) {
+    undoSet(row, setNo)
+  } else {
+    openCheckin(row, setNo)
+  }
 }
 
 // ---- 动作选择器：两种模式统一收口 ----
@@ -254,12 +281,13 @@ async function savePlan() {
   }
 }
 
-// ---- 打卡 ----
+// ---- 打卡（按组） ----
 
-function openCheckin(item: WorkoutItem) {
+function openCheckin(item: WorkoutItem, setNo: number) {
   currentItem.value = item
-  checkinForm.setsDone = item.sets
+  checkinForm.setNo = setNo
   checkinForm.repsDone = item.reps
+  checkinForm.weightUsed = item.weightKg ?? 0
   checkinVisible.value = true
 }
 
@@ -267,7 +295,7 @@ async function doCheckin() {
   checkinSaving.value = true
   try {
     await workoutApi.checkin({ itemId: currentItem.value!.id, ...checkinForm })
-    ElMessage.success('打卡成功')
+    ElMessage.success(`第 ${checkinForm.setNo} 组打卡成功`)
     checkinVisible.value = false
     await loadCheckedToday()
   } finally {
@@ -275,15 +303,15 @@ async function doCheckin() {
   }
 }
 
-/** 已打卡 → 点击确认后撤销（切换为未打卡） */
-async function undoCheckin(row: WorkoutItem) {
+/** 撤销某一组的打卡 */
+async function undoSet(row: WorkoutItem, setNo: number) {
   await ElMessageBox.confirm(
-    `「${row.exerciseName}」今天已打卡，要切换为未打卡吗？`,
-    '切换打卡状态',
-    { type: 'warning', confirmButtonText: '切换为未打卡', cancelButtonText: '取消' },
+    `撤销「${row.exerciseName}」第 ${setNo} 组的打卡记录？`,
+    '撤销组打卡',
+    { type: 'warning', confirmButtonText: '撤销', cancelButtonText: '取消' },
   )
-  await workoutApi.undoCheckin(row.id)
-  ElMessage.success('已切换为未打卡')
+  await workoutApi.undoSetCheckin(row.id, setNo)
+  ElMessage.success('已撤销该组')
   await loadCheckedToday()
 }
 
@@ -305,4 +333,15 @@ onMounted(load)
   background: #409eff; color: #fff; font-size: 11px; line-height: 18px;
 }
 .day-dot { width: 6px; height: 6px; border-radius: 50%; background: #dcdfe6; display: inline-block; }
+/* 按组打卡格子 */
+.set-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; margin-right: 6px; border-radius: 6px;
+  border: 1px solid #dcdfe6; color: #909399; font-size: 12px; cursor: pointer;
+  user-select: none;
+}
+.set-chip:hover { border-color: #67c23a; color: #67c23a; }
+.set-chip.done { background: #67c23a; border-color: #67c23a; color: #fff; }
+.set-chip.done:hover { background: #f56c6c; border-color: #f56c6c; }
+.set-progress { color: #c0c4cc; font-size: 12px; margin-left: 4px; }
 </style>

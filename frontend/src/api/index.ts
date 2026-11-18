@@ -88,13 +88,13 @@ export const workoutApi = {
   addItem: (planId: number, data: ItemPayload) => request.post(`/plans/${planId}/items`, data),
   updateItem: (itemId: number, data: ItemPayload) => request.put(`/items/${itemId}`, data),
   removeItem: (itemId: number) => request.delete(`/items/${itemId}`),
-  checkin: (data: { itemId: number; setsDone: number; repsDone: number; weightUsed?: number }) =>
+  checkin: (data: { itemId: number; setNo: number; repsDone: number; weightUsed?: number }) =>
     request.post('/checkins', data),
   recent: () => request.get('/checkins/recent'),
-  /** 今天已打卡的动作ID列表 */
+  /** 今天已打卡: {动作ID: [已打组号]} */
   todayChecked: (): Promise<any> => request.get('/checkins/today'),
-  /** 撤销今天某动作的打卡 */
-  undoCheckin: (itemId: number) => request.delete(`/checkins/today/${itemId}`),
+  /** 撤销今天某动作某一组的打卡 */
+  undoSetCheckin: (itemId: number, setNo: number) => request.delete(`/checkins/today/${itemId}/${setNo}`),
 }
 
 export interface Exercise {

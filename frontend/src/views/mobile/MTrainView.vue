@@ -27,9 +27,20 @@
                   <el-button type="danger" size="small" @click="removeItem(it)">删除</el-button>
                 </div>
               </template>
-              <el-button v-if="checkedToday.has(it.id)" type="danger" plain round size="small"
-                         @click="undoCheckin(it)">已打卡</el-button>
-              <el-button v-else type="success" round size="small" @click="openCheckin(it)">打卡</el-button>
+              <!-- 力量动作：按组打卡格子 -->
+              <div v-if="it.muscleGroup !== '有氧'" class="set-chips">
+                <span v-for="i in it.sets" :key="i"
+                      class="set-chip" :class="{ done: isSetDone(it.id, i) }"
+                      @click="onSetChip(it, i)">
+                  {{ isSetDone(it.id, i) ? '✓' : i }}
+                </span>
+              </div>
+              <!-- 有氧动作：整项打卡 -->
+              <template v-else>
+                <el-button v-if="isSetDone(it.id, 1)" type="danger" plain round size="small"
+                           @click="undoSet(it, 1)">已打卡</el-button>
+                <el-button v-else type="success" round size="small" @click="openCheckin(it, 1)">打卡</el-button>
+              </template>
             </div>
           </div>
           <el-empty v-else :image-size="50" description="这天休息日" />
@@ -107,15 +118,11 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="checkinVisible" title="训练打卡" width="90%" style="max-width: 400px">
+    <el-dialog v-model="checkinVisible" title="组打卡" width="90%" style="max-width: 400px">
       <div class="checkin-form">
-        <div class="checkin-exercise">{{ currentItem?.exerciseName }}</div>
+        <div class="checkin-exercise">{{ currentItem?.exerciseName }} · 第 {{ form.setNo }} 组</div>
         <div class="field">
-          <span>完成组数</span>
-          <el-input-number v-model="form.setsDone" :min="1" :max="30" size="large" />
-        </div>
-        <div class="field">
-          <span>每组次数</span>
+          <span>完成次数</span>
           <el-input-number v-model="form.repsDone" :min="1" :max="100" size="large" />
         </div>
         <div class="field">
@@ -124,7 +131,7 @@
         </div>
       </div>
       <template #footer>
-        <el-button size="large" style="width: 100%" type="primary" :loading="saving" @click="doCheckin">
+        <el-button size="large" style="width: 100%" type="success" :loading="saving" @click="doCheckin">
           确认打卡
         </el-button>
       </template>
@@ -162,7 +169,7 @@ const newPlanForm = reactive({ title: '', goal: '增肌', daysPerWeek: 4 })
 const checkinVisible = ref(false)
 const saving = ref(false)
 const currentItem = ref<WorkoutItem>()
-const form = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
+const form = reactive({ setNo: 1, repsDone: 10, weightUsed: 0 })
 
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
 /** 当前肌群下的动作库选项 */
@@ -273,19 +280,32 @@ async function savePlan() {
   }
 }
 
-// ---- 打卡（支持已打卡/未打卡状态切换） ----
+// ---- 打卡（按组） ----
 
-const checkedToday = ref<Set<number>>(new Set())
+const checkedToday = ref<Record<number, number[]>>({})
+
+function isSetDone(itemId: number, setNo: number) {
+  return (checkedToday.value[itemId] ?? []).includes(setNo)
+}
 
 async function loadCheckedToday() {
   const res: any = await workoutApi.todayChecked()
-  checkedToday.value = new Set(res.data ?? [])
+  checkedToday.value = res.data ?? {}
 }
 
-function openCheckin(item: WorkoutItem) {
+function onSetChip(item: WorkoutItem, setNo: number) {
+  if (isSetDone(item.id, setNo)) {
+    undoSet(item, setNo)
+  } else {
+    openCheckin(item, setNo)
+  }
+}
+
+function openCheckin(item: WorkoutItem, setNo: number) {
   currentItem.value = item
-  form.setsDone = item.sets
+  form.setNo = setNo
   form.repsDone = item.reps
+  form.weightUsed = item.weightKg ?? 0
   checkinVisible.value = true
 }
 
@@ -293,7 +313,7 @@ async function doCheckin() {
   saving.value = true
   try {
     await workoutApi.checkin({ itemId: currentItem.value!.id, ...form })
-    ElMessage.success('打卡成功')
+    ElMessage.success(`第 ${form.setNo} 组打卡成功`)
     checkinVisible.value = false
     await loadCheckedToday()
   } finally {
@@ -301,14 +321,14 @@ async function doCheckin() {
   }
 }
 
-async function undoCheckin(item: WorkoutItem) {
+async function undoSet(item: WorkoutItem, setNo: number) {
   await ElMessageBox.confirm(
-    `「${item.exerciseName}」今天已打卡，要切换为未打卡吗？`,
-    '切换打卡状态',
-    { type: 'warning', confirmButtonText: '切换为未打卡', cancelButtonText: '取消' },
+    `撤销「${item.exerciseName}」第 ${setNo} 组的打卡记录？`,
+    '撤销组打卡',
+    { type: 'warning', confirmButtonText: '撤销', cancelButtonText: '取消' },
   )
-  await workoutApi.undoCheckin(item.id)
-  ElMessage.success('已切换为未打卡')
+  await workoutApi.undoSetCheckin(item.id, setNo)
+  ElMessage.success('已撤销该组')
   await loadCheckedToday()
 }
 
@@ -328,7 +348,7 @@ onMounted(async () => {
 .plan-title { font-weight: 700; margin-bottom: 8px; }
 .item-list { display: flex; flex-direction: column; gap: 10px; }
 .train-item { display: flex; justify-content: space-between; align-items: center;
-  padding: 12px; background: #f7f8fa; border-radius: 10px; }
+  padding: 12px; background: #f7f8fa; border-radius: 10px; gap: 8px; flex-wrap: wrap; }
 .exercise { font-weight: 600; font-size: 16px; }
 .detail { color: #999; font-size: 12px; margin-top: 2px; }
 .row-actions { display: flex; gap: 8px; flex-shrink: 0; }
@@ -337,4 +357,14 @@ onMounted(async () => {
 .checkin-exercise { font-weight: 700; font-size: 18px; text-align: center; }
 .field { display: flex; justify-content: space-between; align-items: center; }
 .field > span { color: #666; }
+</style>
+
+<style scoped>
+.set-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.set-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid #dcdfe6; color: #909399; font-size: 13px;
+}
+.set-chip.done { background: #67c23a; border-color: #67c23a; color: #fff; }
 </style>
