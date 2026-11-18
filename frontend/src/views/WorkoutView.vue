@@ -19,7 +19,14 @@
       </div>
 
       <el-tabs v-if="items.length" v-model="day">
-        <el-tab-pane v-for="d in days" :key="d.value" :label="d.label" :name="String(d.value)">
+        <el-tab-pane v-for="d in days" :key="d.value" :name="String(d.value)">
+          <template #label>
+            <span class="tab-label">
+              {{ d.label }}
+              <span v-if="itemsByDay(d.value).length" class="day-badge">{{ itemsByDay(d.value).length }}</span>
+              <span v-else class="day-dot" title="休息日"></span>
+            </span>
+          </template>
           <el-table :data="itemsByDay(d.value)" stripe>
             <el-table-column prop="exerciseName" label="动作" min-width="160" />
             <el-table-column prop="muscleGroup" label="肌群" width="90" />
@@ -267,4 +274,10 @@ onMounted(load)
   font-size: 14px; line-height: 1;
 }
 .goal-chip.archived { background: #f4f4f5; color: #909399; }
+.tab-label { display: inline-flex; align-items: center; gap: 5px; }
+.day-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: #409eff; color: #fff; font-size: 11px; line-height: 18px;
+}
+.day-dot { width: 6px; height: 6px; border-radius: 50%; background: #dcdfe6; display: inline-block; }
 </style>
