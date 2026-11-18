@@ -17,7 +17,7 @@ const router = createRouter({
       children: [
         { path: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: '数据看板' } },
         { path: 'chat', component: () => import('../views/ChatView.vue'), meta: { title: 'AI 教练' } },
-        { path: 'metrics', component: () => import('../views/BodyMetricView.vue'), meta: { title: '身体数据' } },
+        { path: 'metrics', component: () => import('../views/BodyMetricView.vue'), meta: { title: '我的' } },
         { path: 'workout', component: () => import('../views/WorkoutView.vue'), meta: { title: '训练计划' } },
         { path: 'knowledge', component: () => import('../views/KnowledgeView.vue'), meta: { title: '知识库管理', admin: true } },
         { path: 'admin/users', component: () => import('../views/AdminUsersView.vue'), meta: { title: '用户管理', admin: true } },

@@ -3,7 +3,7 @@
     <el-card shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>⚖️ 身体数据记录</span>
+          <span>📈 最近记录</span>
           <el-button type="primary" @click="openRecord">记录今日状态</el-button>
         </div>
       </template>
