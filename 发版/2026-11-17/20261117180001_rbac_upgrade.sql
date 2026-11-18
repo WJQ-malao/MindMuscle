@@ -3,6 +3,7 @@
 -- 说明：升级后用户角色以 sys_user_role 关联表为准，sys_user.role 保留作为冗余主角色字段
 -- ============================================================================
 USE fitness_db;
+SET NAMES utf8mb4;
 
 -- 角色表
 CREATE TABLE IF NOT EXISTS sys_role (

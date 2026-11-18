@@ -2,6 +2,7 @@
 -- 健身动作库：按肌群划分的标准动作数据，供训练计划添加动作时选择
 -- ============================================================================
 USE fitness_db;
+SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS exercise_lib (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,

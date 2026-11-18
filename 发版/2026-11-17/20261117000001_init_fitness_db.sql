@@ -3,6 +3,7 @@
 CREATE DATABASE IF NOT EXISTS fitness_db DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE fitness_db;
+SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sys_user (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,

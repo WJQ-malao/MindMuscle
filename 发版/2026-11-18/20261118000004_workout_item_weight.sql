@@ -3,6 +3,7 @@
 -- NULL = 自重/未指定（有氧、自重动作不需要）
 -- ============================================================================
 USE fitness_db;
+SET NAMES utf8mb4;
 
 ALTER TABLE workout_item
     ADD COLUMN weight_kg DOUBLE NULL COMMENT '建议重量(kg), 空=自重/未指定' AFTER reps;

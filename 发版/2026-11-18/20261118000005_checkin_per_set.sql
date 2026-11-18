@@ -4,6 +4,7 @@
 -- 语义变更，开发期历史打卡数据清空
 -- ============================================================================
 USE fitness_db;
+SET NAMES utf8mb4;
 
 ALTER TABLE checkin
     ADD COLUMN set_no INT NOT NULL DEFAULT 1 COMMENT '第几组' AFTER item_id,

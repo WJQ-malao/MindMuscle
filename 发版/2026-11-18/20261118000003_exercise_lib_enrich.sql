@@ -2,6 +2,7 @@
 -- 动作库升级：增加器械分类与动作要点字段（Keep式动作选择器的数据基础）
 -- ============================================================================
 USE fitness_db;
+SET NAMES utf8mb4;
 
 ALTER TABLE exercise_lib
     ADD COLUMN equipment VARCHAR(20)  NOT NULL DEFAULT '自重' COMMENT '器械: 杠铃/哑铃/器械/自重/有氧' AFTER muscle_group,
