@@ -10,11 +10,10 @@
           {{ currentPlan.goal }}
         </span>
         <div class="toolbar-right">
-          <!-- 有内容（进行中且有动作）→编辑；无计划或计划为空壳→创建 -->
-          <template v-if="plans.length && !(currentPlan?.status === 'ACTIVE' && !items.length)">
-            <el-button type="primary" plain @click="openAddPicker">编辑计划</el-button>
-          </template>
-          <el-button v-else type="primary" @click="openNewPlanPicker">创建计划</el-button>
+          <!-- 按天维度: 当天有内容→编辑; 当天为空→创建(往现有计划补这一天); 无计划→创建计划容器 -->
+          <el-button v-if="!plans.length" type="primary" @click="openNewPlanPicker">创建计划</el-button>
+          <el-button v-else-if="currentDayItems.length" type="primary" plain @click="openDayPicker">编辑计划</el-button>
+          <el-button v-else type="primary" @click="openDayPicker">创建计划</el-button>
         </div>
       </div>
 
@@ -23,8 +22,7 @@
           <template #label>
             <span class="tab-label">
               {{ d.label }}
-              <span v-if="itemsByDay(d.value).length" class="day-badge">{{ itemsByDay(d.value).length }}</span>
-              <span v-else class="day-dot" title="休息日"></span>
+              <span v-if="!itemsByDay(d.value).length" class="day-dot" title="未安排"></span>
             </span>
           </template>
           <el-table :data="itemsByDay(d.value)" stripe>
@@ -49,14 +47,14 @@
         <el-button @click="$router.push('/chat')">让 AI 帮你生成</el-button>
       </el-empty>
       <el-empty v-else-if="!loading" description="这个计划还没有动作，编辑添加或重新创建">
-        <el-button type="primary" plain @click="openAddPicker">编辑计划</el-button>
+        <el-button type="primary" plain @click="openDayPicker">编辑计划</el-button>
         <el-button type="primary" @click="openNewPlanPicker">创建计划</el-button>
       </el-empty>
     </el-card>
 
-    <!-- 动作选择器：创建计划篮子 / 编辑当前计划 双模式 -->
+    <!-- 动作选择器：创建计划(周维度) / 按天编辑 双模式 -->
     <ExercisePicker :visible="pickerVisible" :mode="pickerMode" :plan-id="currentPlanId"
-                    :default-day="Number(day)"
+                    :day-of-week="Number(day)"
                     @close="pickerVisible = false" @finish="onPickerFinish" @apply="onPickerApply" />
 
     <!-- 新建计划：填信息创建 -->
@@ -124,7 +122,7 @@ const currentPlanId = ref<number>()
 const newPlanVisible = ref(false)
 const planSaving = ref(false)
 const pickerVisible = ref(false)
-const pickerMode = ref<'new-plan' | 'add-to-plan'>('new-plan')
+const pickerMode = ref<'new-plan' | 'edit-day'>('new-plan')
 const basket = ref<BasketItem[]>([])
 const newPlanForm = reactive({ title: '', goal: '增肌', daysPerWeek: 4 })
 
@@ -135,6 +133,8 @@ const checkinForm = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
 
 const currentPlan = computed(() => plans.value.find((p) => p.id === currentPlanId.value))
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
+/** 当前选中那一天的训练项（编辑/创建按天维度） */
+const currentDayItems = computed(() => itemsByDay(Number(day.value)))
 
 async function load() {
   loading.value = true
@@ -165,8 +165,9 @@ function openNewPlanPicker() {
   pickerVisible.value = true
 }
 
-function openAddPicker() {
-  pickerMode.value = 'add-to-plan'
+/** 按天编辑/创建：编辑的是当前选中那一天的内容 */
+function openDayPicker() {
+  pickerMode.value = 'edit-day'
   pickerVisible.value = true
 }
 

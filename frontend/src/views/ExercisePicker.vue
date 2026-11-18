@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :model-value="visible" :title="mode === 'new-plan' ? '选择动作（创建计划）' : '编辑计划动作'"
+  <el-dialog :model-value="visible" :title="pickerTitle"
              width="94%" top="3vh" @update:model-value="$emit('close')" @open="onOpen">
     <div class="picker-body">
       <!-- 左侧：部位导航 -->
@@ -51,7 +51,7 @@
       <!-- 右侧：已选清单（可修改组次/训练日，可移除） -->
       <aside class="basket-panel">
         <div class="basket-title">
-          {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `当前计划动作（${basket.length}）` }}
+          {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `${dayNames[props.dayOfWeek ?? 1]} 已安排（${basket.length}）` }}
         </div>
         <div class="basket-list">
           <div v-for="(b, i) in sortedBasket" :key="b.itemId ?? 'new-' + i" class="basket-item">
@@ -73,7 +73,7 @@
               <el-input-number v-model="b.weightKg" :min="0" :max="500" :precision="1" size="small"
                                style="width: 110px" placeholder="自重" />
             </div>
-            <div v-if="mode === 'add-to-plan'" class="basket-fields">
+            <div v-if="false" class="basket-fields">
               <span>训练日</span>
               <el-select v-model="b.dayOfWeek" size="small" style="width: 100px">
                 <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
@@ -101,7 +101,7 @@
           <el-input-number v-model="configForm.weightKg" :min="0" :max="500" :precision="1"
                            size="large" style="width: 100%" placeholder="自重可不填" />
         </el-form-item>
-        <el-form-item v-if="mode === 'add-to-plan'" label="训练日">
+        <el-form-item v-if="false" label="训练日">
           <el-select v-model="configForm.dayOfWeek" size="large" style="width: 100%">
             <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
           </el-select>
@@ -142,9 +142,10 @@ export interface ApplyDiff {
 const props = defineProps<{
   visible: boolean
   /** new-plan: 新建计划篮子；add-to-plan: 编辑/加入当前计划（载入现有动作） */
-  mode: 'new-plan' | 'add-to-plan'
+  mode: 'new-plan' | 'edit-day'
   planId?: number
-  defaultDay?: number
+  /** 按天编辑时锁定训练日（1-7） */
+  dayOfWeek?: number
 }>()
 const emit = defineEmits<{
   (e: 'close'): void
@@ -176,6 +177,9 @@ const configVisible = ref(false)
 const configEx = ref<Exercise>()
 const configForm = ref({ sets: 4, reps: 10, dayOfWeek: 1, weightKg: undefined as number | undefined })
 
+const pickerTitle = computed(() =>
+  props.mode === 'new-plan' ? '选择动作（创建计划）' : `${dayNames[props.dayOfWeek ?? 1]} · 编辑训练内容`)
+
 const filtered = computed(() =>
   exercises.value.filter((e) =>
     (currentGroup.value === '全部' || e.muscleGroup === currentGroup.value) &&
@@ -184,14 +188,14 @@ const filtered = computed(() =>
 
 /** 右栏按训练日排序展示（仅编辑模式有意义，新建模式保持挑选顺序） */
 const sortedBasket = computed(() =>
-  props.mode === 'add-to-plan'
+  false && props.mode === 'edit-day'
     ? [...basket.value].sort((a, b) => (a.dayOfWeek ?? 9) - (b.dayOfWeek ?? 9))
     : basket.value)
 
 async function onOpen() {
   basket.value = []
   expandedTips.value = new Set()
-  configForm.value.dayOfWeek = props.defaultDay ?? 1
+  configForm.value.dayOfWeek = props.dayOfWeek ?? 1
   if (!exercises.value.length) {
     loading.value = true
     try {
@@ -202,11 +206,11 @@ async function onOpen() {
     }
   }
   // 编辑模式：把当前计划的已有动作载入篮子，可改组次/换天/移除
-  if (props.mode === 'add-to-plan' && props.planId) {
+  if (props.mode === 'edit-day' && props.planId) {
     loading.value = true
     try {
       const res: any = await workoutApi.items(props.planId)
-      original.value = res.data
+      original.value = res.data.filter((it: any) => it.dayOfWeek === props.dayOfWeek)
       basket.value = res.data.map((it: any) => ({
         itemId: it.id,
         name: it.exerciseName,
@@ -225,7 +229,7 @@ async function onOpen() {
 
 function openConfig(ex: Exercise) {
   configEx.value = ex
-  configForm.value = { sets: 4, reps: 10, dayOfWeek: props.defaultDay ?? 1, weightKg: undefined }
+  configForm.value = { sets: 4, reps: 10, dayOfWeek: props.dayOfWeek ?? 1, weightKg: undefined }
   configVisible.value = true
 }
 
@@ -237,7 +241,7 @@ function confirmConfig() {
     sets: configForm.value.sets,
     reps: configForm.value.reps,
     weightKg: configForm.value.weightKg == null ? null : configForm.value.weightKg,
-    dayOfWeek: props.mode === 'add-to-plan' ? configForm.value.dayOfWeek : undefined,
+    dayOfWeek: props.mode === 'edit-day' ? configForm.value.dayOfWeek : undefined,
     isNew: true,
   }]
   configVisible.value = false
@@ -253,7 +257,7 @@ function addCustom() {
   const group = currentGroup.value === '全部' ? '核心' : currentGroup.value
   basket.value = [...basket.value, {
     name, muscleGroup: group, sets: 4, reps: 10, weightKg: null,
-    dayOfWeek: props.mode === 'add-to-plan' ? (props.defaultDay ?? 1) : undefined,
+    dayOfWeek: props.mode === 'edit-day' ? (props.dayOfWeek ?? 1) : undefined,
     isNew: true,
   }]
   customName.value = ''
