@@ -36,7 +36,7 @@
             </el-table-column>
           </el-table>
           <div v-if="editMode" class="day-actions">
-            <el-button type="primary" plain round size="small" @click="openItemAdd">＋ 添加动作</el-button>
+            <el-button type="primary" plain round size="small" @click="openAddPicker">＋ 添加动作</el-button>
             <span v-if="!itemsByDay(d.value).length" class="rest-tip">这一天还没有安排动作</span>
           </div>
           <el-empty v-if="!editMode && !itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
@@ -79,8 +79,9 @@
       </template>
     </el-dialog>
 
-    <!-- 新建计划：先挑动作进篮子 -->
-    <ExercisePicker :visible="pickerVisible" @close="pickerVisible = false" @finish="onBasketFinish" />
+    <!-- 动作选择器：新建计划篮子 / 加入当前计划 双模式 -->
+    <ExercisePicker :visible="pickerVisible" :mode="pickerMode" :default-day="Number(day)"
+                    @close="pickerVisible = false" @finish="onPickerFinish" />
 
     <!-- 新建计划：填信息创建 -->
     <el-dialog v-model="newPlanVisible" title="创建训练计划" width="440px">
@@ -133,7 +134,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { exerciseApi, workoutApi, type Exercise, type WorkoutItem, type WorkoutPlan } from '../api'
-import ExercisePicker from './ExercisePicker.vue'
+import ExercisePicker, { type BasketItem } from './ExercisePicker.vue'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
@@ -155,7 +156,8 @@ const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, 
 const newPlanVisible = ref(false)
 const planSaving = ref(false)
 const pickerVisible = ref(false)
-const basket = ref<Exercise[]>([])
+const pickerMode = ref<'new-plan' | 'add-to-plan'>('new-plan')
+const basket = ref<BasketItem[]>([])
 const newPlanForm = reactive({ title: '', goal: '增肌', daysPerWeek: 4 })
 
 const checkinVisible = ref(false)
@@ -197,16 +199,6 @@ function onGroupChange() {
   itemForm.exerciseName = ''
 }
 
-function openItemAdd() {
-  editingItem.value = undefined
-  itemForm.exerciseName = ''
-  itemForm.muscleGroup = '胸'
-  itemForm.dayOfWeek = Number(day.value)
-  itemForm.sets = 4
-  itemForm.reps = 10
-  itemVisible.value = true
-}
-
 function openItemEdit(row: WorkoutItem) {
   editingItem.value = row
   itemForm.exerciseName = row.exerciseName
@@ -245,13 +237,39 @@ async function removeItem(row: WorkoutItem) {
   loadItems()
 }
 
-// ---- 新建计划（Keep式：先选动作进篮子，再创建计划） ----
+// ---- 动作选择器：两种模式统一收口 ----
 
-function onBasketFinish(selected: Exercise[]) {
-  basket.value = selected
+function openAddPicker() {
+  pickerMode.value = 'add-to-plan'
+  pickerVisible.value = true
+}
+
+async function onPickerFinish(selected: BasketItem[]) {
+  if (pickerMode.value === 'new-plan') {
+    basket.value = selected
+    pickerVisible.value = false
+    newPlanForm.title = ''
+    newPlanVisible.value = true
+    return
+  }
+  // 加入当前计划：逐个入库
+  if (!currentPlanId.value) return
+  let ok = 0
+  for (const b of selected) {
+    try {
+      await workoutApi.addItem(currentPlanId.value, {
+        exerciseName: b.name,
+        muscleGroup: b.muscleGroup,
+        dayOfWeek: b.dayOfWeek ?? Number(day.value),
+        sets: b.sets,
+        reps: b.reps,
+      })
+      ok++
+    } catch { /* 拦截器已提示 */ }
+  }
+  ElMessage.success(`已添加 ${ok} 个动作`)
   pickerVisible.value = false
-  newPlanForm.title = ''
-  newPlanVisible.value = true
+  loadItems()
 }
 
 async function savePlan() {
@@ -265,8 +283,8 @@ async function savePlan() {
       title: newPlanForm.title,
       goal: newPlanForm.goal,
       daysPerWeek: newPlanForm.daysPerWeek,
-      items: basket.value.map((e) => ({
-        exerciseName: e.name, muscleGroup: e.muscleGroup, sets: 4, reps: 10,
+      items: basket.value.map((b) => ({
+        exerciseName: b.name, muscleGroup: b.muscleGroup, sets: b.sets, reps: b.reps,
       })),
     })
     ElMessage.success('计划已创建，动作已分配到各训练日，可进入编辑模式微调')
