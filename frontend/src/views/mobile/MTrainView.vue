@@ -27,9 +27,9 @@
                   <el-button type="danger" size="small" @click="removeItem(it)">删除</el-button>
                 </div>
               </template>
-              <el-button v-if="checkedToday.has(it.id)" type="success" round size="small"
+              <el-button v-if="checkedToday.has(it.id)" type="danger" plain round size="small"
                          @click="undoCheckin(it)">已打卡</el-button>
-              <el-button v-else type="primary" round size="small" @click="openCheckin(it)">打卡</el-button>
+              <el-button v-else type="success" round size="small" @click="openCheckin(it)">打卡</el-button>
             </div>
           </div>
           <el-empty v-else :image-size="50" description="这天休息日" />

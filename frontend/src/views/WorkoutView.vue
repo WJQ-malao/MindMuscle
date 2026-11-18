@@ -35,9 +35,9 @@
             </el-table-column>
             <el-table-column label="操作" width="110">
               <template #default="{ row }">
-                <el-button v-if="checkedToday.has(row.id)" type="success" size="small"
+                <el-button v-if="checkedToday.has(row.id)" type="danger" plain size="small"
                            @click="undoCheckin(row)">已打卡</el-button>
-                <el-button v-else type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
+                <el-button v-else type="success" size="small" @click="openCheckin(row)">打卡</el-button>
               </template>
             </el-table-column>
           </el-table>
