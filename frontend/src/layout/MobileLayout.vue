@@ -28,9 +28,6 @@ const userTabs: TabItem[] = [
 ]
 
 const adminTabs: TabItem[] = [
-  { path: '/m/home', icon: '📊', label: '数据看板' },
-  { path: '/m/chat', icon: '🤖', label: 'AI教练' },
-  { path: '/m/train', icon: '🏋️', label: '训练' },
   { path: '/m/admin', icon: '🛠️', label: '管理', match: true },
   { path: '/m/profile', icon: '👤', label: '我的' },
 ]

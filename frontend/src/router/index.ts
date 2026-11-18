@@ -45,7 +45,11 @@ const router = createRouter({
 router.beforeEach((to) => {
   const token = localStorage.getItem('token')
   if (!token && to.path !== '/login') return '/login'
-  if (token && to.path === '/login') return isMobile() ? '/m/home' : '/dashboard'
+  if (token && to.path === '/login') {
+    // PC 端：管理员落到平台概览；移动端：管理员落到平台管理，普通用户落到首页
+    if (isMobile()) return localStorage.getItem('role') === 'ADMIN' ? '/m/admin' : '/m/home'
+    return '/dashboard'
+  }
 
   if (token) {
     // 自动分流：手机访问PC路由 → 移动版；PC显式访问/m/路由 → 放行（便于开发调试与演示）
