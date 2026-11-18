@@ -205,13 +205,13 @@ async function onOpen() {
       loading.value = false
     }
   }
-  // 编辑模式：把当前计划的已有动作载入篮子，可改组次/换天/移除
+  // 编辑模式：只载入"这一天"的已有动作，可改组次/重量/移除
   if (props.mode === 'edit-day' && props.planId) {
     loading.value = true
     try {
       const res: any = await workoutApi.items(props.planId)
       original.value = res.data.filter((it: any) => it.dayOfWeek === props.dayOfWeek)
-      basket.value = res.data.map((it: any) => ({
+      basket.value = original.value.map((it: any) => ({
         itemId: it.id,
         name: it.exerciseName,
         muscleGroup: it.muscleGroup,
