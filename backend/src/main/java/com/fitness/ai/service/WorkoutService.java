@@ -45,12 +45,21 @@ public class WorkoutService {
     /**
      * 规则模板生成训练计划：具体动作编排由确定性规则完成，
      * 大模型只负责对话和触发，不参与数值与编排决策（护栏设计）。
+     * 新计划创建时自动归档旧的进行中计划，保证同时只有一个 ACTIVE。
      */
     @Transactional
     public WorkoutPlan generatePlan(Long userId, String goal, int daysPerWeek) {
         if (daysPerWeek < 1 || daysPerWeek > 7) {
             throw new IllegalArgumentException("每周训练天数必须在 1-7 之间");
         }
+        List<WorkoutPlan> activePlans = planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
+                .eq(WorkoutPlan::getUserId, userId)
+                .eq(WorkoutPlan::getStatus, "ACTIVE"));
+        for (WorkoutPlan old : activePlans) {
+            old.setStatus("ARCHIVED");
+            planMapper.updateById(old);
+        }
+
         WorkoutPlan plan = new WorkoutPlan();
         plan.setUserId(userId);
         plan.setGoal(goal);
