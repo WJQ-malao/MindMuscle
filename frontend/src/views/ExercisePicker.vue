@@ -50,11 +50,16 @@
 
       <!-- 右侧：已选清单（可修改组次/训练日，可移除） -->
       <aside class="basket-panel">
-        <div class="basket-title">已选 {{ basket.length }} 个</div>
+        <div class="basket-title">
+          {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `当前计划动作（${basket.length}）` }}
+        </div>
         <div class="basket-list">
           <div v-for="(b, i) in basket" :key="i" class="basket-item">
             <div class="basket-head">
-              <span class="basket-name">{{ b.name }}</span>
+              <span class="basket-name">
+                {{ b.name }}
+                <el-tag v-if="b.isNew" size="small" type="success" effect="plain" style="margin-left: 4px">新</el-tag>
+              </span>
               <el-button size="small" text type="danger" @click="basket.splice(i, 1)">移除</el-button>
             </div>
             <div class="basket-fields">
