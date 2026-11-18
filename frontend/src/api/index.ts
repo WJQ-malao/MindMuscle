@@ -74,7 +74,22 @@ export const knowledgeApi = {
     })
   },
   files: () => request.get('/knowledge/files'),
-  remove: (fileName: string) => request.delete('/knowledge/files', { params: { fileName } }),
+  preview: (id: number) => request.get(`/knowledge/files/${id}/preview`),
+  /** 下载原始文件：axios 携带 token 拿 blob，浏览器触发保存 */
+  download: async (id: number, fileName: string) => {
+    const resp = await fetch(`/api/knowledge/files/${id}/download`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    if (!resp.ok) throw new Error('下载失败')
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  remove: (id: number) => request.delete(`/knowledge/files/${id}`),
 }
 
 export const chatApi = {

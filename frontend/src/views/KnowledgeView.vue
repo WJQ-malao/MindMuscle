@@ -19,14 +19,24 @@
         <el-table-column prop="fileName" label="文件名" min-width="220" show-overflow-tooltip />
         <el-table-column prop="chunkCount" label="切片数" width="100" />
         <el-table-column prop="createTime" label="入库时间" width="180" />
-        <el-table-column label="操作" width="90">
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
+            <el-button size="small" text type="primary" @click="preview(row)">查看</el-button>
+            <el-button size="small" text type="primary" @click="download(row)">下载</el-button>
             <el-button type="danger" size="small" text @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
       <el-empty v-if="!loading && files.length === 0" description="知识库为空，请先上传健身知识文档" />
     </el-card>
+
+    <el-dialog v-model="previewVisible" :title="previewData?.fileName" width="720px">
+      <div v-loading="previewLoading">
+        <pre class="preview-text">{{ previewData?.text }}</pre>
+        <el-alert v-if="previewData?.truncated" type="warning" :closable="false" style="margin-top: 8px"
+                  title="文件过大，仅预览前 200KB，完整内容请下载查看" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -39,6 +49,9 @@ const file = ref<File | null>(null)
 const files = ref<KnowledgeFile[]>([])
 const loading = ref(false)
 const uploading = ref(false)
+const previewVisible = ref(false)
+const previewLoading = ref(false)
+const previewData = ref<any>(null)
 
 async function load() {
   loading.value = true
@@ -65,10 +78,48 @@ async function upload() {
 
 async function remove(row: KnowledgeFile) {
   await ElMessageBox.confirm(`确定从知识库删除「${row.fileName}」吗？`, '提示', { type: 'warning' })
-  await knowledgeApi.remove(row.fileName)
+  await knowledgeApi.remove(row.id)
   ElMessage.success('已删除')
   load()
 }
 
+async function preview(row: KnowledgeFile) {
+  previewVisible.value = true
+  previewLoading.value = true
+  previewData.value = null
+  try {
+    const res: any = await knowledgeApi.preview(row.id)
+    previewData.value = res.data
+  } catch {
+    previewVisible.value = false
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+async function download(row: KnowledgeFile) {
+  try {
+    await knowledgeApi.download(row.id, row.fileName)
+  } catch {
+    ElMessage.error('下载失败')
+  }
+}
+
 onMounted(load)
 </script>
+
+<style scoped>
+.preview-text {
+  max-height: 55vh;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>

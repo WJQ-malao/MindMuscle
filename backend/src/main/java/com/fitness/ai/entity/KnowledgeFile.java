@@ -15,5 +15,7 @@ public class KnowledgeFile {
     private Long id;
     private String fileName;
     private Integer chunkCount;
+    /** 原始文件存储路径（上传时落盘，供管理页查看/下载） */
+    private String filePath;
     private LocalDateTime createTime;
 }

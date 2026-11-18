@@ -21,3 +21,6 @@ frontend/dist/
 
 # 本地向量库降级数据
 backend/data/
+
+# 知识库原始文件
+backend/knowledge-files/
