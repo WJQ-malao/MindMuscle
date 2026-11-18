@@ -19,7 +19,7 @@
             <div v-for="it in itemsByDay(d.value)" :key="it.id" class="train-item">
               <div>
                 <div class="exercise">{{ it.exerciseName }}</div>
-                <div class="detail">{{ it.muscleGroup }} · {{ it.sets }}组x{{ it.reps }}{{ it.muscleGroup === '有氧' ? '分钟' : '次' }}</div>
+                <div class="detail">{{ it.muscleGroup }} · {{ it.weightKg ? it.weightKg + 'kg · ' : '' }}{{ it.sets }}组x{{ it.reps }}{{ it.muscleGroup === '有氧' ? '分钟' : '次' }}</div>
               </div>
               <template v-if="editMode">
                 <div class="row-actions">
@@ -68,6 +68,9 @@
         </el-form-item>
         <el-form-item :label="itemForm.muscleGroup === '有氧' ? '时长(分钟)' : '每组次数'">
           <el-input-number v-model="itemForm.reps" :min="1" :max="100" />
+        </el-form-item>
+        <el-form-item v-if="itemForm.muscleGroup !== '有氧'" label="重量(kg)">
+          <el-input-number v-model="itemForm.weightKg" :min="0" :max="500" :precision="1" placeholder="自重" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -146,7 +149,7 @@ const editMode = ref(false)
 const itemVisible = ref(false)
 const itemSaving = ref(false)
 const editingItem = ref<WorkoutItem>()
-const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, sets: 4, reps: 10 })
+const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, sets: 4, reps: 10, weightKg: undefined as number | undefined })
 
 const pickerVisible = ref(false)
 const basket = ref<BasketItem[]>([])
@@ -198,6 +201,7 @@ function openItemEdit(row: WorkoutItem) {
   itemForm.dayOfWeek = row.dayOfWeek
   itemForm.sets = row.sets
   itemForm.reps = row.reps
+  itemForm.weightKg = row.weightKg ?? undefined
   itemVisible.value = true
 }
 
@@ -252,7 +256,8 @@ async function savePlan() {
       goal: newPlanForm.goal,
       daysPerWeek: newPlanForm.daysPerWeek,
       items: basket.value.map((b) => ({
-        exerciseName: b.name, muscleGroup: b.muscleGroup, sets: b.sets, reps: b.reps,
+        exerciseName: b.name, muscleGroup: b.muscleGroup,
+        sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
       })),
     })
     ElMessage.success('计划已创建，动作已分配到各训练日，点「编辑」可微调')

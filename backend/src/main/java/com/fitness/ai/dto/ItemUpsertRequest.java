@@ -27,6 +27,11 @@ public record ItemUpsertRequest(
         @NotNull(message = "次数不能为空")
         @Min(value = 1, message = "次数必须在 1-100 之间")
         @Max(value = 100, message = "次数必须在 1-100 之间")
-        Integer reps
+        Integer reps,
+
+        /** 建议重量（kg），力量训练动作可指定，空=自重 */
+        @Min(value = 0, message = "重量不能为负")
+        @Max(value = 1000, message = "重量不能超过 1000kg")
+        Double weightKg
 ) {
 }

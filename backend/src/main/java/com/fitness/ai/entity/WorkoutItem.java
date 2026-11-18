@@ -19,5 +19,7 @@ public class WorkoutItem {
     private String muscleGroup;
     private Integer sets;
     private Integer reps;
+    /** 建议重量（kg），NULL = 自重/未指定 */
+    private Double weightKg;
     private Integer sort;
 }

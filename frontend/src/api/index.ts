@@ -25,6 +25,7 @@ export interface WorkoutItem {
   muscleGroup: string
   sets: number
   reps: number
+  weightKg?: number | null
 }
 
 export interface KnowledgeFile {
@@ -57,19 +58,35 @@ export const metricApi = {
   remove: (id: number) => request.delete(`/metrics/${id}`),
 }
 
+export interface ItemPayload {
+  exerciseName: string
+  muscleGroup: string
+  dayOfWeek: number
+  sets: number
+  reps: number
+  weightKg?: number | null
+}
+
+/** 创建计划时的动作项（训练日由后端按每周天数自动分摊） */
+export interface PlanItemPayload {
+  exerciseName: string
+  muscleGroup: string
+  sets: number
+  reps: number
+  weightKg?: number | null
+}
+
 export const workoutApi = {
   plans: () => request.get('/plans'),
   createPlan: (data: {
     title: string
     goal: string
     daysPerWeek: number
-    items: { exerciseName: string; muscleGroup: string; sets: number; reps: number }[]
+    items: PlanItemPayload[]
   }) => request.post('/plans', data),
   items: (planId: number) => request.get(`/plans/${planId}/items`),
-  addItem: (planId: number, data: { exerciseName: string; muscleGroup: string; dayOfWeek: number; sets: number; reps: number }) =>
-    request.post(`/plans/${planId}/items`, data),
-  updateItem: (itemId: number, data: { exerciseName: string; muscleGroup: string; dayOfWeek: number; sets: number; reps: number }) =>
-    request.put(`/items/${itemId}`, data),
+  addItem: (planId: number, data: ItemPayload) => request.post(`/plans/${planId}/items`, data),
+  updateItem: (itemId: number, data: ItemPayload) => request.put(`/items/${itemId}`, data),
   removeItem: (itemId: number) => request.delete(`/items/${itemId}`),
   checkin: (data: { itemId: number; setsDone: number; repsDone: number; weightUsed?: number }) =>
     request.post('/checkins', data),

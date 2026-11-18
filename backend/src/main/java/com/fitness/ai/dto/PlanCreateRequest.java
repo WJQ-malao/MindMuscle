@@ -44,7 +44,12 @@ public record PlanCreateRequest(
 
             @Min(value = 1, message = "次数必须在 1-100 之间")
             @Max(value = 100, message = "次数必须在 1-100 之间")
-            int reps
+            int reps,
+
+            /** 建议重量（kg），空=自重 */
+            @Min(value = 0, message = "重量不能为负")
+            @Max(value = 1000, message = "重量不能超过 1000kg")
+            Double weightKg
     ) {
     }
 }

@@ -204,6 +204,7 @@ public class WorkoutService {
             it.setDayOfWeek(dayOfWeek);
             it.setSets(src.sets());
             it.setReps(src.reps());
+            it.setWeightKg(src.weightKg());
             it.setSort(daySort[dayOfWeek]++);
             itemMapper.insert(it);
         }
@@ -212,7 +213,7 @@ public class WorkoutService {
 
     /** 为计划的某一天添加动作 */
     public WorkoutItem addItem(Long userId, Long planId, String exerciseName, String muscleGroup,
-                               int dayOfWeek, int sets, int reps) {
+                               int dayOfWeek, int sets, int reps, Double weightKg) {
         requireOwnedPlan(userId, planId);
         WorkoutItem it = new WorkoutItem();
         it.setPlanId(planId);
@@ -221,6 +222,7 @@ public class WorkoutService {
         it.setDayOfWeek(dayOfWeek);
         it.setSets(sets);
         it.setReps(reps);
+        it.setWeightKg(weightKg);
         Long maxSort = itemMapper.selectCount(new LambdaQueryWrapper<WorkoutItem>()
                 .eq(WorkoutItem::getPlanId, planId)
                 .eq(WorkoutItem::getDayOfWeek, dayOfWeek));
@@ -229,15 +231,16 @@ public class WorkoutService {
         return it;
     }
 
-    /** 修改动作（换动作/调组数次数/移到别的训练日） */
+    /** 修改动作（换动作/调组数次数重量/移到别的训练日） */
     public WorkoutItem updateItem(Long userId, Long itemId, String exerciseName, String muscleGroup,
-                                  int dayOfWeek, int sets, int reps) {
+                                  int dayOfWeek, int sets, int reps, Double weightKg) {
         WorkoutItem it = requireOwnedItem(userId, itemId);
         it.setExerciseName(exerciseName);
         it.setMuscleGroup(muscleGroup);
         it.setDayOfWeek(dayOfWeek);
         it.setSets(sets);
         it.setReps(reps);
+        it.setWeightKg(weightKg);
         itemMapper.updateById(it);
         return it;
     }
@@ -291,6 +294,7 @@ public class WorkoutService {
         byDay.forEach((day, list) -> {
             sb.append(dayNames[day]).append("：");
             list.forEach(it -> sb.append(it.getExerciseName())
+                    .append(it.getWeightKg() != null ? " " + it.getWeightKg() + "kg" : "")
                     .append(" ").append(it.getSets()).append("组x").append(it.getReps())
                     .append(it.getMuscleGroup().equals("有氧") ? "分钟" : "次").append("；"));
             sb.append("\n");

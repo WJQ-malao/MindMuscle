@@ -53,7 +53,7 @@ public class WorkoutController {
                                        @Valid @RequestBody ItemUpsertRequest request) {
         return Result.ok(workoutService.addItem(UserContext.getUserId(), planId,
                 request.exerciseName(), request.muscleGroup(),
-                request.dayOfWeek(), request.sets(), request.reps()));
+                request.dayOfWeek(), request.sets(), request.reps(), request.weightKg()));
     }
 
     @PutMapping("/items/{itemId}")
@@ -61,7 +61,7 @@ public class WorkoutController {
                                           @Valid @RequestBody ItemUpsertRequest request) {
         return Result.ok(workoutService.updateItem(UserContext.getUserId(), itemId,
                 request.exerciseName(), request.muscleGroup(),
-                request.dayOfWeek(), request.sets(), request.reps()));
+                request.dayOfWeek(), request.sets(), request.reps(), request.weightKg()));
     }
 
     @DeleteMapping("/items/{itemId}")

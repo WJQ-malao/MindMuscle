@@ -63,6 +63,11 @@
               <span>{{ b.muscleGroup === '有氧' ? '分钟' : '次数' }}</span>
               <el-input-number v-model="b.reps" :min="1" :max="100" size="small" style="width: 100px" />
             </div>
+            <div v-if="b.muscleGroup !== '有氧'" class="basket-fields">
+              <span>重量(kg)</span>
+              <el-input-number v-model="b.weightKg" :min="0" :max="500" :precision="1" size="small"
+                               style="width: 110px" placeholder="自重" />
+            </div>
             <div v-if="mode === 'add-to-plan'" class="basket-fields">
               <span>训练日</span>
               <el-select v-model="b.dayOfWeek" size="small" style="width: 100px">
@@ -86,6 +91,10 @@
         </el-form-item>
         <el-form-item :label="configEx?.muscleGroup === '有氧' ? '时长(分钟)' : '每组次数'">
           <el-input-number v-model="configForm.reps" :min="1" :max="100" size="large" style="width: 100%" />
+        </el-form-item>
+        <el-form-item v-if="configEx && configEx.muscleGroup !== '有氧'" label="重量(kg)">
+          <el-input-number v-model="configForm.weightKg" :min="0" :max="500" :precision="1"
+                           size="large" style="width: 100%" placeholder="自重可不填" />
         </el-form-item>
         <el-form-item v-if="mode === 'add-to-plan'" label="训练日">
           <el-select v-model="configForm.dayOfWeek" size="large" style="width: 100%">
@@ -113,6 +122,8 @@ export interface BasketItem {
   muscleGroup: string
   sets: number
   reps: number
+  /** 建议重量(kg)，空=自重 */
+  weightKg?: number | null
   dayOfWeek?: number
   isNew: boolean
 }
@@ -158,7 +169,7 @@ const customName = ref('')
 
 const configVisible = ref(false)
 const configEx = ref<Exercise>()
-const configForm = ref({ sets: 4, reps: 10, dayOfWeek: 1 })
+const configForm = ref({ sets: 4, reps: 10, dayOfWeek: 1, weightKg: undefined as number | undefined })
 
 const filtered = computed(() =>
   exercises.value.filter((e) =>
@@ -191,6 +202,7 @@ async function onOpen() {
         muscleGroup: it.muscleGroup,
         sets: it.sets,
         reps: it.reps,
+        weightKg: it.weightKg ?? null,
         dayOfWeek: it.dayOfWeek,
         isNew: false,
       }))
@@ -202,7 +214,7 @@ async function onOpen() {
 
 function openConfig(ex: Exercise) {
   configEx.value = ex
-  configForm.value = { sets: 4, reps: 10, dayOfWeek: props.defaultDay ?? 1 }
+  configForm.value = { sets: 4, reps: 10, dayOfWeek: props.defaultDay ?? 1, weightKg: undefined }
   configVisible.value = true
 }
 
@@ -213,6 +225,7 @@ function confirmConfig() {
     muscleGroup: ex.muscleGroup,
     sets: configForm.value.sets,
     reps: configForm.value.reps,
+    weightKg: configForm.value.weightKg == null ? null : configForm.value.weightKg,
     dayOfWeek: props.mode === 'add-to-plan' ? configForm.value.dayOfWeek : undefined,
     isNew: true,
   }]
@@ -228,7 +241,7 @@ function addCustom() {
   }
   const group = currentGroup.value === '全部' ? '核心' : currentGroup.value
   basket.value = [...basket.value, {
-    name, muscleGroup: group, sets: 4, reps: 10,
+    name, muscleGroup: group, sets: 4, reps: 10, weightKg: null,
     dayOfWeek: props.mode === 'add-to-plan' ? (props.defaultDay ?? 1) : undefined,
     isNew: true,
   }]
@@ -255,7 +268,7 @@ function finish() {
   const updated = basket.value.filter((b) => {
     if (b.isNew) return false
     const o = original.value.find((x: any) => x.id === b.itemId)
-    return o && (o.sets !== b.sets || o.reps !== b.reps || o.dayOfWeek !== b.dayOfWeek)
+    return o && (o.sets !== b.sets || o.reps !== b.reps || o.dayOfWeek !== b.dayOfWeek || (o.weightKg ?? null) !== (b.weightKg ?? null))
   })
   const removed = original.value
     .filter((o: any) => !basket.value.some((b) => b.itemId === o.id))

@@ -23,8 +23,10 @@
           <el-table :data="itemsByDay(d.value)" stripe>
             <el-table-column prop="exerciseName" label="动作" min-width="160" />
             <el-table-column prop="muscleGroup" label="肌群" width="90" />
-            <el-table-column label="安排" width="150">
-              <template #default="{ row }">{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}</template>
+            <el-table-column label="安排" width="190">
+              <template #default="{ row }">
+                {{ row.weightKg ? row.weightKg + 'kg · ' : '' }}{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}
+              </template>
             </el-table-column>
             <el-table-column label="操作" width="110">
               <template #default="{ row }">
@@ -184,7 +186,7 @@ async function onPickerApply(diff: ApplyDiff) {
     try {
       await workoutApi.updateItem(b.itemId!, {
         exerciseName: b.name, muscleGroup: b.muscleGroup,
-        dayOfWeek: b.dayOfWeek ?? 1, sets: b.sets, reps: b.reps,
+        dayOfWeek: b.dayOfWeek ?? 1, sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
       })
       updateOk++
     } catch { /* 拦截器已提示 */ }
@@ -193,7 +195,7 @@ async function onPickerApply(diff: ApplyDiff) {
     try {
       await workoutApi.addItem(currentPlanId.value, {
         exerciseName: b.name, muscleGroup: b.muscleGroup,
-        dayOfWeek: b.dayOfWeek ?? Number(day.value), sets: b.sets, reps: b.reps,
+        dayOfWeek: b.dayOfWeek ?? Number(day.value), sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
       })
       addOk++
     } catch { /* 拦截器已提示 */ }
@@ -219,7 +221,8 @@ async function savePlan() {
       goal: newPlanForm.goal,
       daysPerWeek: newPlanForm.daysPerWeek,
       items: basket.value.map((b) => ({
-        exerciseName: b.name, muscleGroup: b.muscleGroup, sets: b.sets, reps: b.reps,
+        exerciseName: b.name, muscleGroup: b.muscleGroup,
+        sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
       })),
     })
     ElMessage.success('计划已创建，动作已分配到各训练日，可进入编辑模式微调')
