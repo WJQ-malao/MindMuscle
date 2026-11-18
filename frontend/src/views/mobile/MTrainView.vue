@@ -27,6 +27,8 @@
                   <el-button type="danger" size="small" @click="removeItem(it)">删除</el-button>
                 </div>
               </template>
+              <el-button v-if="checkedToday.has(it.id)" type="success" round size="small"
+                         @click="undoCheckin(it)">已打卡</el-button>
               <el-button v-else type="primary" round size="small" @click="openCheckin(it)">打卡</el-button>
             </div>
           </div>
@@ -271,7 +273,14 @@ async function savePlan() {
   }
 }
 
-// ---- 打卡 ----
+// ---- 打卡（支持已打卡/未打卡状态切换） ----
+
+const checkedToday = ref<Set<number>>(new Set())
+
+async function loadCheckedToday() {
+  const res: any = await workoutApi.todayChecked()
+  checkedToday.value = new Set(res.data ?? [])
+}
 
 function openCheckin(item: WorkoutItem) {
   currentItem.value = item
@@ -286,13 +295,26 @@ async function doCheckin() {
     await workoutApi.checkin({ itemId: currentItem.value!.id, ...form })
     ElMessage.success('打卡成功')
     checkinVisible.value = false
+    await loadCheckedToday()
   } finally {
     saving.value = false
   }
 }
 
+async function undoCheckin(item: WorkoutItem) {
+  await ElMessageBox.confirm(
+    `「${item.exerciseName}」今天已打卡，要切换为未打卡吗？`,
+    '切换打卡状态',
+    { type: 'warning', confirmButtonText: '切换为未打卡', cancelButtonText: '取消' },
+  )
+  await workoutApi.undoCheckin(item.id)
+  ElMessage.success('已切换为未打卡')
+  await loadCheckedToday()
+}
+
 onMounted(async () => {
   load()
+  loadCheckedToday()
   const res: any = await exerciseApi.list()
   exercises.value = res.data
 })

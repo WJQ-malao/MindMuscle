@@ -163,6 +163,26 @@ public class WorkoutService {
                 .last("LIMIT " + limit));
     }
 
+    /** 今天已打卡的动作ID列表（用于打卡状态切换展示） */
+    public List<Long> todayCheckedItemIds(Long userId) {
+        return checkinMapper.selectList(new LambdaQueryWrapper<Checkin>()
+                        .eq(Checkin::getUserId, userId)
+                        .eq(Checkin::getCheckinDate, LocalDate.now())
+                        .select(Checkin::getItemId)).stream()
+                .map(Checkin::getItemId)
+                .distinct()
+                .toList();
+    }
+
+    /** 撤销今天某个动作的打卡（切换为未打卡） */
+    @Transactional
+    public void undoTodayCheckin(Long userId, Long itemId) {
+        checkinMapper.delete(new LambdaQueryWrapper<Checkin>()
+                .eq(Checkin::getUserId, userId)
+                .eq(Checkin::getItemId, itemId)
+                .eq(Checkin::getCheckinDate, LocalDate.now()));
+    }
+
     // ============ 手动编辑（Keep 式） ============
 
     /** 手动创建空计划（来源 MANUAL），旧的进行中计划自动归档 */

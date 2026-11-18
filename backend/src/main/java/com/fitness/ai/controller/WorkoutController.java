@@ -81,4 +81,17 @@ public class WorkoutController {
     public Result<List<Checkin>> recent() {
         return Result.ok(workoutService.recentCheckins(UserContext.getUserId(), 10));
     }
+
+    /** 今天已打卡的动作ID（打卡状态展示） */
+    @GetMapping("/checkins/today")
+    public Result<List<Long>> todayChecked() {
+        return Result.ok(workoutService.todayCheckedItemIds(UserContext.getUserId()));
+    }
+
+    /** 撤销今天某动作的打卡（切换为未打卡） */
+    @DeleteMapping("/checkins/today/{itemId}")
+    public Result<String> undoToday(@PathVariable Long itemId) {
+        workoutService.undoTodayCheckin(UserContext.getUserId(), itemId);
+        return Result.ok("已切换为未打卡");
+    }
 }

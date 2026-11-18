@@ -91,6 +91,10 @@ export const workoutApi = {
   checkin: (data: { itemId: number; setsDone: number; repsDone: number; weightUsed?: number }) =>
     request.post('/checkins', data),
   recent: () => request.get('/checkins/recent'),
+  /** 今天已打卡的动作ID列表 */
+  todayChecked: (): Promise<any> => request.get('/checkins/today'),
+  /** 撤销今天某动作的打卡 */
+  undoCheckin: (itemId: number) => request.delete(`/checkins/today/${itemId}`),
 }
 
 export interface Exercise {

@@ -35,7 +35,9 @@
             </el-table-column>
             <el-table-column label="操作" width="110">
               <template #default="{ row }">
-                <el-button type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
+                <el-button v-if="checkedToday.has(row.id)" type="success" size="small"
+                           @click="undoCheckin(row)">已打卡</el-button>
+                <el-button v-else type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -106,7 +108,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
 import ExercisePicker, { type ApplyDiff, type BasketItem } from './ExercisePicker.vue'
 
@@ -156,6 +158,15 @@ async function loadItems() {
   }
   const res: any = await workoutApi.items(currentPlanId.value)
   items.value = res.data
+  await loadCheckedToday()
+}
+
+/** 今天已打卡的动作ID集合（打卡/已打卡状态切换） */
+const checkedToday = ref<Set<number>>(new Set())
+
+async function loadCheckedToday() {
+  const res: any = await workoutApi.todayChecked()
+  checkedToday.value = new Set(res.data ?? [])
 }
 
 // ---- 动作选择器：两种模式统一收口 ----
@@ -258,9 +269,22 @@ async function doCheckin() {
     await workoutApi.checkin({ itemId: currentItem.value!.id, ...checkinForm })
     ElMessage.success('打卡成功')
     checkinVisible.value = false
+    await loadCheckedToday()
   } finally {
     checkinSaving.value = false
   }
+}
+
+/** 已打卡 → 点击确认后撤销（切换为未打卡） */
+async function undoCheckin(row: WorkoutItem) {
+  await ElMessageBox.confirm(
+    `「${row.exerciseName}」今天已打卡，要切换为未打卡吗？`,
+    '切换打卡状态',
+    { type: 'warning', confirmButtonText: '切换为未打卡', cancelButtonText: '取消' },
+  )
+  await workoutApi.undoCheckin(row.id)
+  ElMessage.success('已切换为未打卡')
+  await loadCheckedToday()
 }
 
 onMounted(load)
