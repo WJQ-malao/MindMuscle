@@ -90,8 +90,9 @@ async function preview(row: KnowledgeFile) {
   try {
     const res: any = await knowledgeApi.preview(row.id)
     previewData.value = res.data
-  } catch {
+  } catch (e: any) {
     previewVisible.value = false
+    ElMessage.error(e?.message || '预览失败')
   } finally {
     previewLoading.value = false
   }
