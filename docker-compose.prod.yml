@@ -1,0 +1,142 @@
+# 生产环境一键部署（云服务器，Linux + Docker）
+#
+# 与开发环境的区别：
+#   - MySQL 改为容器，首次启动自动执行 发版/ 下全部 SQL 脚本
+#   - MinIO 改为容器（Linux 镜像站有 quay.io/minio/minio），Milvus 通过容器网络直连
+#   - 新增 backend 与 frontend(Nginx) 两个服务，对外只暴露 80 端口
+#
+# 使用方法：
+#   1. 服务器安装 Docker 与 docker compose 插件
+#   2. 在本文件底部 environment 处填入真实密钥（或改用 .env 文件，见 README）
+#   3. docker compose -f docker-compose.prod.yml up -d --build
+#   4. 浏览器访问 http://服务器公网IP ，注册账号即可使用
+#
+# 硬件要求：最低 4 核 8G（Milvus standalone 独占约 2-3G 内存，2G 机器跑不动）
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: fitness-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 或环境中设置 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    # 仅容器网络内部访问，不映射到宿主机，减小暴露面（调试时可临时打开）
+    # ports:
+    #   - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # 首次初始化按文件名顺序执行（时间戳前缀天然有序）
+      - ./发版/2026-11-17/20261117000001_init_fitness_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./发版/2026-11-17/20261117180001_rbac_upgrade.sql:/docker-entrypoint-initdb.d/02_rbac.sql:ro
+      - ./发版/2026-11-18/20261118000001_knowledge_file_path.sql:/docker-entrypoint-initdb.d/03_knowledge.sql:ro
+      - ./发版/2026-11-18/20261118000002_exercise_lib.sql:/docker-entrypoint-initdb.d/04_exercise.sql:ro
+      - ./发版/2026-11-18/20261118000003_exercise_lib_enrich.sql:/docker-entrypoint-initdb.d/05_exercise_enrich.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: fitness-minio
+    command: server /data --address ":9000" --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.14
+    container_name: fitness-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.5.6
+    container_name: fitness-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      # 容器网络内直连 MinIO 服务（开发环境用的 host.docker.internal 仅 Windows 有效，此处不用）
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      COMMON_STORAGETYPE: minio
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: fitness-backend
+    environment:
+      # 数据库 / 向量库走容器网络内的服务名
+      MYSQL_HOST: mysql
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 或环境中设置 MYSQL_PASSWORD}
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      # ===== 以下为机密项，必须用真实值替换（建议写入服务器上的 .env 文件） =====
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?请设置 DEEPSEEK_API_KEY}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:?请设置 SILICONFLOW_API_KEY}
+      # 任意足够长的随机字符串，如: openssl rand -hex 32
+      JWT_SECRET: ${JWT_SECRET:?请设置 JWT_SECRET}
+    volumes:
+      # 知识库原始文件持久化（容器重建后不丢）
+      - knowledge_data:/app/knowledge-files
+    depends_on:
+      mysql:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: fitness-frontend
+    ports:
+      # 对外唯一入口：http://服务器公网IP
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  minio_data:
+  etcd_data:
+  milvus_data:
+  knowledge_data:

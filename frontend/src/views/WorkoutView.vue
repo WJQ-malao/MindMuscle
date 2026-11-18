@@ -10,7 +10,7 @@
           {{ currentPlan.goal }}
         </el-tag>
         <div class="toolbar-right">
-          <el-button @click="newPlanVisible = true">新建计划</el-button>
+          <el-button @click="pickerVisible = true">新建计划</el-button>
           <el-button :type="editMode ? 'warning' : 'primary'" plain @click="editMode = !editMode">
             {{ editMode ? '完成编辑' : '编辑计划' }}
           </el-button>
@@ -79,9 +79,14 @@
       </template>
     </el-dialog>
 
-    <!-- 新建计划 -->
-    <el-dialog v-model="newPlanVisible" title="新建训练计划" width="440px">
-      <el-form label-width="90px">
+    <!-- 新建计划：先挑动作进篮子 -->
+    <ExercisePicker :visible="pickerVisible" @close="pickerVisible = false" @finish="onBasketFinish" />
+
+    <!-- 新建计划：填信息创建 -->
+    <el-dialog v-model="newPlanVisible" title="创建训练计划" width="440px">
+      <el-alert type="info" :closable="false" style="margin-bottom: 14px"
+                :title="`已选 ${basket.length} 个动作，将按顺序轮流分配到每周各训练日，创建后可微调`" />
+      <el-form label-width="110px">
         <el-form-item label="计划名称">
           <el-input v-model="newPlanForm.title" placeholder="如：上肢力量强化" maxlength="200" />
         </el-form-item>
@@ -90,10 +95,13 @@
             <el-option v-for="g in ['增肌', '减脂', '塑形', '力量', '耐力', '保持']" :key="g" :value="g" :label="g" />
           </el-select>
         </el-form-item>
+        <el-form-item label="每周训练天数">
+          <el-input-number v-model="newPlanForm.daysPerWeek" :min="1" :max="7" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="newPlanVisible = false">取消</el-button>
-        <el-button type="primary" :loading="planSaving" @click="savePlan">创建</el-button>
+        <el-button type="primary" :loading="planSaving" :disabled="!basket.length" @click="savePlan">创建计划</el-button>
       </template>
     </el-dialog>
 
@@ -125,6 +133,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { exerciseApi, workoutApi, type Exercise, type WorkoutItem, type WorkoutPlan } from '../api'
+import ExercisePicker from './ExercisePicker.vue'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
@@ -145,7 +154,9 @@ const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, 
 
 const newPlanVisible = ref(false)
 const planSaving = ref(false)
-const newPlanForm = reactive({ title: '', goal: '增肌' })
+const pickerVisible = ref(false)
+const basket = ref<Exercise[]>([])
+const newPlanForm = reactive({ title: '', goal: '增肌', daysPerWeek: 4 })
 
 const checkinVisible = ref(false)
 const checkinSaving = ref(false)
@@ -234,7 +245,14 @@ async function removeItem(row: WorkoutItem) {
   loadItems()
 }
 
-// ---- 新建计划 ----
+// ---- 新建计划（Keep式：先选动作进篮子，再创建计划） ----
+
+function onBasketFinish(selected: Exercise[]) {
+  basket.value = selected
+  pickerVisible.value = false
+  newPlanForm.title = ''
+  newPlanVisible.value = true
+}
 
 async function savePlan() {
   if (!newPlanForm.title.trim()) {
@@ -243,13 +261,18 @@ async function savePlan() {
   }
   planSaving.value = true
   try {
-    const res: any = await workoutApi.createPlan({ ...newPlanForm })
-    ElMessage.success('计划已创建，开始往里面添加动作吧')
+    const res: any = await workoutApi.createPlan({
+      title: newPlanForm.title,
+      goal: newPlanForm.goal,
+      daysPerWeek: newPlanForm.daysPerWeek,
+      items: basket.value.map((e) => ({
+        exerciseName: e.name, muscleGroup: e.muscleGroup, sets: 4, reps: 10,
+      })),
+    })
+    ElMessage.success('计划已创建，动作已分配到各训练日，可进入编辑模式微调')
     newPlanVisible.value = false
-    newPlanForm.title = ''
     await load()
     currentPlanId.value = res.data.id
-    editMode.value = true
     await loadItems()
   } finally {
     planSaving.value = false

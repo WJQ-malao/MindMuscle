@@ -59,7 +59,12 @@ export const metricApi = {
 
 export const workoutApi = {
   plans: () => request.get('/plans'),
-  createPlan: (data: { title: string; goal: string }) => request.post('/plans', data),
+  createPlan: (data: {
+    title: string
+    goal: string
+    daysPerWeek: number
+    items: { exerciseName: string; muscleGroup: string; sets: number; reps: number }[]
+  }) => request.post('/plans', data),
   items: (planId: number) => request.get(`/plans/${planId}/items`),
   addItem: (planId: number, data: { exerciseName: string; muscleGroup: string; dayOfWeek: number; sets: number; reps: number }) =>
     request.post(`/plans/${planId}/items`, data),

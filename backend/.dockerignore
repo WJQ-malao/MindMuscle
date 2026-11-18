@@ -1,0 +1,4 @@
+target/
+data/
+knowledge-files/
+src/main/resources/application-local.yml

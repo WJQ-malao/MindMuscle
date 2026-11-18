@@ -1,6 +1,7 @@
 package com.fitness.ai.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fitness.ai.dto.PlanCreateRequest;
 import com.fitness.ai.entity.Checkin;
 import com.fitness.ai.entity.WorkoutItem;
 import com.fitness.ai.entity.WorkoutPlan;
@@ -181,6 +182,31 @@ public class WorkoutService {
         plan.setStatus("ACTIVE");
         plan.setSource("MANUAL");
         planMapper.insert(plan);
+        return plan;
+    }
+
+    /**
+     * 篮子模式创建计划（Keep 式流程：先选动作再建计划）：
+     * 动作按选择顺序轮流分摊到每周 N 个训练日，之后再手动微调。
+     */
+    @Transactional
+    public WorkoutPlan createPlanFromBasket(Long userId, String title, String goal, int daysPerWeek,
+                                            List<PlanCreateRequest.Item> items) {
+        WorkoutPlan plan = createManualPlan(userId, title, goal);
+        int[] daySort = new int[8];
+        for (int i = 0; i < items.size(); i++) {
+            PlanCreateRequest.Item src = items.get(i);
+            int dayOfWeek = i % daysPerWeek + 1;
+            WorkoutItem it = new WorkoutItem();
+            it.setPlanId(plan.getId());
+            it.setExerciseName(src.exerciseName());
+            it.setMuscleGroup(src.muscleGroup());
+            it.setDayOfWeek(dayOfWeek);
+            it.setSets(src.sets());
+            it.setReps(src.reps());
+            it.setSort(daySort[dayOfWeek]++);
+            itemMapper.insert(it);
+        }
         return plan;
     }
 

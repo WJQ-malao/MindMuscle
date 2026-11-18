@@ -38,8 +38,9 @@ public class WorkoutController {
 
     @PostMapping("/plans")
     public Result<WorkoutPlan> createPlan(@Valid @RequestBody PlanCreateRequest request) {
-        return Result.ok(workoutService.createManualPlan(
-                UserContext.getUserId(), request.title(), request.goal()));
+        return Result.ok(workoutService.createPlanFromBasket(
+                UserContext.getUserId(), request.title(), request.goal(),
+                request.daysPerWeek(), request.items()));
     }
 
     @GetMapping("/plans/{planId}/items")

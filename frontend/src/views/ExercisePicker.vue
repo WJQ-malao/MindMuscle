@@ -1,8 +1,8 @@
 <template>
-  <el-dialog :model-value="visible" title="选择动作" width="92%" top="4vh" class="exercise-picker"
+  <el-dialog :model-value="visible" title="选择动作" width="92%" top="4vh"
              @update:model-value="$emit('close')" @open="onOpen">
     <div class="picker-body">
-      <!-- 左侧：部位导航 -->
+      <!-- 左侧：部位导航（自由切换，不限定部位） -->
       <aside class="group-nav">
         <div v-for="g in groups" :key="g" class="group-item"
              :class="{ active: currentGroup === g }" @click="currentGroup = g">
@@ -16,9 +16,6 @@
           <el-input v-model="keyword" placeholder="输入动作名字搜索" clearable size="large" class="search">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
-          <el-select v-model="dayOfWeek" size="large" style="width: 130px">
-            <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
-          </el-select>
         </div>
 
         <div class="equip-chips">
@@ -35,10 +32,10 @@
               </span>
               <div class="ex-name">
                 <div class="ex-title">{{ ex.name }}</div>
-                <div class="ex-sub">{{ ex.muscleGroup }} · {{ ex.equipment }}</div>
+                <div class="ex-sub">{{ ex.muscleGroup }} · {{ ex.equipment || '自重' }}</div>
               </div>
-              <button class="ex-add" :disabled="addedIds.has(ex.id)" @click="add(ex)">
-                {{ addedIds.has(ex.id) ? '✓' : '＋' }}
+              <button class="ex-add" :disabled="selectedIds.has(ex.id)" @click="toggle(ex)">
+                {{ selectedIds.has(ex.id) ? '✓' : '＋' }}
               </button>
             </div>
             <div v-if="ex.tips" class="ex-tips" @click="toggleTips(ex.id)">
@@ -51,14 +48,17 @@
         <div class="manual-add">
           <el-input v-model="customName" placeholder="库里没有？输入自定义动作名" size="small" style="width: 260px"
                     @keyup.enter="addCustom" />
-          <el-button size="small" @click="addCustom">添加自定义动作</el-button>
+          <el-button size="small" @click="addCustom">加入已选</el-button>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <span class="added-count">已添加 {{ addedIds.size }} 个动作</span>
-      <el-button type="primary" size="large" @click="$emit('close')">完成</el-button>
+      <span class="added-count">已选 {{ basket.length }} 个动作</span>
+      <el-button size="large" @click="$emit('close')">继续逛逛</el-button>
+      <el-button type="primary" size="large" :disabled="!basket.length" @click="finish">
+        完成，去创建计划
+      </el-button>
     </template>
   </el-dialog>
 </template>
@@ -66,20 +66,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { exerciseApi, workoutApi, type Exercise } from '../api'
+import { exerciseApi, type Exercise } from '../api'
 
-const props = defineProps<{
-  visible: boolean
-  planId: number
-  defaultDay: number
-}>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'added'): void
+  (e: 'finish', basket: Exercise[]): void
 }>()
 
-const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const groups = ['全部', '胸', '背', '腿', '肩', '手臂', '核心', '有氧']
 const equipmentOptions = ['全部', '杠铃', '哑铃', '器械', '自重', '有氧']
 const groupColor: Record<string, string> = {
@@ -92,10 +86,12 @@ const loading = ref(false)
 const keyword = ref('')
 const currentGroup = ref('全部')
 const currentEquip = ref('全部')
-const dayOfWeek = ref(1)
-const addedIds = ref<Set<number>>(new Set())
+/** 已选篮子：先自由挑选，完成后统一创建计划 */
+const basket = ref<Exercise[]>([])
 const expandedTips = ref<Set<number>>(new Set())
+const customName = ref('')
 
+const selectedIds = computed(() => new Set(basket.value.map((e) => e.id)))
 const filtered = computed(() =>
   exercises.value.filter((e) =>
     (currentGroup.value === '全部' || e.muscleGroup === currentGroup.value) &&
@@ -103,8 +99,8 @@ const filtered = computed(() =>
     (!keyword.value || e.name.includes(keyword.value))))
 
 async function onOpen() {
-  dayOfWeek.value = props.defaultDay
-  addedIds.value = new Set()
+  basket.value = []
+  expandedTips.value = new Set()
   if (!exercises.value.length) {
     loading.value = true
     try {
@@ -116,31 +112,27 @@ async function onOpen() {
   }
 }
 
-async function add(ex: Exercise) {
-  try {
-    await workoutApi.addItem(props.planId, {
-      exerciseName: ex.name, muscleGroup: ex.muscleGroup,
-      dayOfWeek: dayOfWeek.value, sets: 4, reps: 10,
-    })
-    addedIds.value = new Set([...addedIds.value, ex.id])
-    ElMessage.success(`已添加「${ex.name}」到${dayNames[dayOfWeek.value]}`)
-    emit('added')
-  } catch { /* 拦截器已提示 */ }
+function toggle(ex: Exercise) {
+  if (selectedIds.value.has(ex.id)) {
+    basket.value = basket.value.filter((e) => e.id !== ex.id)
+  } else {
+    basket.value = [...basket.value, ex]
+  }
 }
 
-async function addCustom() {
+function addCustom() {
   const name = customName.value.trim()
   if (!name) return
+  if (basket.value.some((e) => e.name === name)) {
+    ElMessage.warning('该动作已在已选列表中')
+    return
+  }
   const group = currentGroup.value === '全部' ? '核心' : currentGroup.value
-  try {
-    await workoutApi.addItem(props.planId, {
-      exerciseName: name, muscleGroup: group,
-      dayOfWeek: dayOfWeek.value, sets: 4, reps: 10,
-    })
-    ElMessage.success(`已添加自定义动作「${name}」`)
-    customName.value = ''
-    emit('added')
-  } catch { /* 拦截器已提示 */ }
+  basket.value = [...basket.value, {
+    id: -(basket.value.length + 1), name, muscleGroup: group,
+    equipment: '自定义', tips: '', imageUrl: '', sort: 0,
+  }]
+  customName.value = ''
 }
 
 function toggleTips(id: number) {
@@ -153,7 +145,9 @@ function toggleTips(id: number) {
   expandedTips.value = next
 }
 
-const customName = ref('')
+function finish() {
+  emit('finish', [...basket.value])
+}
 </script>
 
 <style scoped>
