@@ -50,12 +50,15 @@
     <!-- 添加/编辑动作 -->
     <el-dialog v-model="itemVisible" :title="editingItem ? '编辑动作' : '添加动作'" width="440px">
       <el-form label-width="90px">
-        <el-form-item label="动作名称">
-          <el-input v-model="itemForm.exerciseName" placeholder="如：哑铃卧推" maxlength="100" />
-        </el-form-item>
         <el-form-item label="肌群">
-          <el-select v-model="itemForm.muscleGroup" style="width: 100%">
+          <el-select v-model="itemForm.muscleGroup" style="width: 100%" @change="onGroupChange">
             <el-option v-for="m in muscleOptions" :key="m" :value="m" :label="m" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="动作">
+          <el-select v-model="itemForm.exerciseName" filterable style="width: 100%"
+                     placeholder="选择或输入动作名称" allow-create>
+            <el-option v-for="e in exercisesByGroup" :key="e.id" :value="e.name" :label="e.name" />
           </el-select>
         </el-form-item>
         <el-form-item label="训练日">
@@ -63,11 +66,11 @@
             <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
           </el-select>
         </el-form-item>
+        <el-form-item label="组数">
+          <el-input-number v-model="itemForm.sets" :min="1" :max="30" />
+        </el-form-item>
         <el-form-item :label="itemForm.muscleGroup === '有氧' ? '时长(分钟)' : '每组次数'">
           <el-input-number v-model="itemForm.reps" :min="1" :max="100" />
-        </el-form-item>
-        <el-form-item :label="itemForm.muscleGroup === '有氧' ? '组数' : '组数'">
-          <el-input-number v-model="itemForm.sets" :min="1" :max="30" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -121,7 +124,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
+import { exerciseApi, workoutApi, type Exercise, type WorkoutItem, type WorkoutPlan } from '../api'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
@@ -130,6 +133,7 @@ const day = ref(String(new Date().getDay() || 7))
 
 const plans = ref<WorkoutPlan[]>([])
 const items = ref<WorkoutItem[]>([])
+const exercises = ref<Exercise[]>([])
 const loading = ref(false)
 const currentPlanId = ref<number>()
 const editMode = ref(false)
@@ -150,6 +154,9 @@ const checkinForm = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
 
 const currentPlan = computed(() => plans.value.find((p) => p.id === currentPlanId.value))
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
+/** 当前肌群下的动作库选项 */
+const exercisesByGroup = computed(() =>
+  exercises.value.filter((e) => e.muscleGroup === itemForm.muscleGroup))
 
 async function load() {
   loading.value = true
@@ -174,6 +181,10 @@ async function loadItems() {
 }
 
 // ---- 动作添加/编辑 ----
+
+function onGroupChange() {
+  itemForm.exerciseName = ''
+}
 
 function openItemAdd() {
   editingItem.value = undefined
@@ -265,7 +276,11 @@ async function doCheckin() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  load()
+  const res: any = await exerciseApi.list()
+  exercises.value = res.data
+})
 </script>
 
 <style scoped>

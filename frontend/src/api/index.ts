@@ -71,6 +71,17 @@ export const workoutApi = {
   recent: () => request.get('/checkins/recent'),
 }
 
+export interface Exercise {
+  id: number
+  name: string
+  muscleGroup: string
+  sort: number
+}
+
+export const exerciseApi = {
+  list: (): Promise<any> => request.get('/exercises'),
+}
+
 export const knowledgeApi = {
   upload: (file: File) => {
     const form = new FormData()
