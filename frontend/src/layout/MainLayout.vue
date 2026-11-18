@@ -14,8 +14,8 @@
         <template v-else>
           <el-menu-item index="/dashboard"><el-icon><DataLine /></el-icon>数据看板</el-menu-item>
           <el-menu-item index="/chat"><el-icon><ChatDotRound /></el-icon>AI 教练</el-menu-item>
-          <el-menu-item index="/metrics"><el-icon><Odometer /></el-icon>我的</el-menu-item>
           <el-menu-item index="/workout"><el-icon><Calendar /></el-icon>训练计划</el-menu-item>
+          <el-menu-item index="/metrics"><el-icon><Odometer /></el-icon>我的</el-menu-item>
         </template>
       </el-menu>
     </el-aside>
