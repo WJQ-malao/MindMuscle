@@ -6,9 +6,9 @@
           <el-option v-for="p in plans" :key="p.id" :value="p.id"
                      :label="`${p.title}（${p.source === 'AI' ? 'AI生成' : '手动创建'} · ${p.status === 'ACTIVE' ? '进行中' : '已归档'}）`" />
         </el-select>
-        <el-tag v-if="currentPlan" :type="currentPlan.status === 'ACTIVE' ? 'primary' : 'info'" size="large">
+        <span v-if="currentPlan" class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
           {{ currentPlan.goal }}
-        </el-tag>
+        </span>
         <div class="toolbar-right">
           <!-- 有计划时只显示编辑；无计划时才显示新建（新建会使旧计划归档，避免误触） -->
           <template v-if="plans.length">
@@ -338,7 +338,13 @@ onMounted(async () => {
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar > * { flex-shrink: 0; }
 .toolbar-right { display: flex; gap: 10px; }
+.goal-chip {
+  padding: 7px 14px; border-radius: 8px; background: #ecf5ff; color: #409eff;
+  font-size: 14px; line-height: 1;
+}
+.goal-chip.archived { background: #f4f4f5; color: #909399; }
 .day-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 .rest-tip { color: #999; font-size: 12px; }
 </style>
