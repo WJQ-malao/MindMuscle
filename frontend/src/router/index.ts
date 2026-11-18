@@ -33,6 +33,10 @@ const router = createRouter({
         { path: 'chat', component: () => import('../views/mobile/MChatView.vue'), meta: { title: 'AI 教练', tab: true } },
         { path: 'train', component: () => import('../views/mobile/MTrainView.vue'), meta: { title: '训练', tab: true } },
         { path: 'profile', component: () => import('../views/mobile/MProfileView.vue'), meta: { title: '我的', tab: true } },
+        // 管理员：复用 PC 端页面（表格类组件在窄屏下可横向滚动）
+        { path: 'admin', component: () => import('../views/mobile/MAdminView.vue'), meta: { title: '平台管理', admin: true } },
+        { path: 'admin/knowledge', component: () => import('../views/KnowledgeView.vue'), meta: { title: '知识库管理', admin: true } },
+        { path: 'admin/users', component: () => import('../views/AdminUsersView.vue'), meta: { title: '用户管理', admin: true } },
       ],
     },
   ],

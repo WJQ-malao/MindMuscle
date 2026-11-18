@@ -5,7 +5,7 @@
     </div>
     <nav class="tab-bar">
       <router-link v-for="t in tabs" :key="t.path" :to="t.path" class="tab"
-                   :class="{ active: $route.path === t.path }">
+                   :class="{ active: t.match ? $route.path.startsWith(t.path) : $route.path === t.path }">
         <span class="icon">{{ t.icon }}</span>
         <span class="label">{{ t.label }}</span>
       </router-link>
@@ -14,12 +14,28 @@
 </template>
 
 <script setup lang="ts">
-const tabs = [
+import { computed } from 'vue'
+
+const role = localStorage.getItem('role') || 'USER'
+
+interface TabItem { path: string; icon: string; label: string; match?: boolean }
+
+const userTabs: TabItem[] = [
   { path: '/m/home', icon: '📊', label: '数据看板' },
   { path: '/m/chat', icon: '🤖', label: 'AI教练' },
   { path: '/m/train', icon: '🏋️', label: '训练计划' },
   { path: '/m/profile', icon: '👤', label: '我的' },
 ]
+
+const adminTabs: TabItem[] = [
+  { path: '/m/home', icon: '📊', label: '数据看板' },
+  { path: '/m/chat', icon: '🤖', label: 'AI教练' },
+  { path: '/m/train', icon: '🏋️', label: '训练' },
+  { path: '/m/admin', icon: '🛠️', label: '管理', match: true },
+  { path: '/m/profile', icon: '👤', label: '我的' },
+]
+
+const tabs = computed(() => (role === 'ADMIN' ? adminTabs : userTabs))
 </script>
 
 <style scoped>
