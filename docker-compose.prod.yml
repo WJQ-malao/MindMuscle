@@ -86,8 +86,9 @@ services:
     build: ./frontend
     container_name: fitness-frontend
     ports:
-      # 对外唯一入口：http://服务器公网IP
-      - "80:80"
+      # 对外入口：http://域名:8000 或 http://服务器IP:8000
+      # 用 8000 非常用端口规避大陆 80/443 的备案检测（试用ECS无法备案接入）
+      - "8000:80"
     depends_on:
       - backend
     restart: unless-stopped
