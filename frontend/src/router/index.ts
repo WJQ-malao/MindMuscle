@@ -44,9 +44,8 @@ router.beforeEach((to) => {
   if (token && to.path === '/login') return isMobile() ? '/m/home' : '/dashboard'
 
   if (token) {
-    // PC / 手机 路由自动分流，同一地址无缝切换
+    // 自动分流：手机访问PC路由 → 移动版；PC显式访问/m/路由 → 放行（便于开发调试与演示）
     if (isMobile() && !to.path.startsWith('/m')) return '/m/home'
-    if (!isMobile() && to.path.startsWith('/m')) return '/dashboard'
     // 管理员专属页面
     if (to.meta.admin && localStorage.getItem('role') !== 'ADMIN') return '/dashboard'
   }
