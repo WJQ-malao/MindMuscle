@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :model-value="visible" :title="mode === 'new-plan' ? '选择动作（新建计划）' : '选择动作（加入当前计划）'"
+  <el-dialog :model-value="visible" :title="mode === 'new-plan' ? '选择动作（创建计划）' : '编辑计划动作'"
              width="94%" top="3vh" @update:model-value="$emit('close')" @open="onOpen">
     <div class="picker-body">
       <!-- 左侧：部位导航 -->
@@ -73,7 +73,7 @@
           <el-empty v-if="!basket.length" description="点左侧 ＋ 选择动作" :image-size="50" />
         </div>
         <el-button type="primary" size="large" style="width: 100%" :disabled="!basket.length" @click="finish">
-          {{ mode === 'new-plan' ? '完成，去创建计划' : `加入计划（${basket.length}）` }}
+          {{ mode === 'new-plan' ? '完成，去创建计划' : '保存修改' }}
         </el-button>
       </aside>
     </div>
@@ -104,25 +104,36 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { exerciseApi, type Exercise } from '../api'
+import { exerciseApi, workoutApi, type Exercise } from '../api'
 
 export interface BasketItem {
+  /** 已有动作对应 workout_item 主键；新增动作为空 */
+  itemId?: number
   name: string
   muscleGroup: string
   sets: number
   reps: number
   dayOfWeek?: number
+  isNew: boolean
+}
+
+export interface ApplyDiff {
+  added: BasketItem[]
+  updated: BasketItem[]
+  removed: { itemId: number; name: string }[]
 }
 
 const props = defineProps<{
   visible: boolean
-  /** new-plan: 新建计划篮子；add-to-plan: 加入当前计划 */
+  /** new-plan: 新建计划篮子；add-to-plan: 编辑/加入当前计划（载入现有动作） */
   mode: 'new-plan' | 'add-to-plan'
+  planId?: number
   defaultDay?: number
 }>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'finish', basket: BasketItem[]): void
+  (e: 'apply', diff: ApplyDiff): void
 }>()
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -140,6 +151,8 @@ const keyword = ref('')
 const currentGroup = ref('全部')
 const currentEquip = ref('全部')
 const basket = ref<BasketItem[]>([])
+/** 载入时的原始动作快照，用于计算增删改差异 */
+const original = ref<any[]>([])
 const expandedTips = ref<Set<number>>(new Set())
 const customName = ref('')
 
@@ -166,6 +179,25 @@ async function onOpen() {
       loading.value = false
     }
   }
+  // 编辑模式：把当前计划的已有动作载入篮子，可改组次/换天/移除
+  if (props.mode === 'add-to-plan' && props.planId) {
+    loading.value = true
+    try {
+      const res: any = await workoutApi.items(props.planId)
+      original.value = res.data
+      basket.value = res.data.map((it: any) => ({
+        itemId: it.id,
+        name: it.exerciseName,
+        muscleGroup: it.muscleGroup,
+        sets: it.sets,
+        reps: it.reps,
+        dayOfWeek: it.dayOfWeek,
+        isNew: false,
+      }))
+    } finally {
+      loading.value = false
+    }
+  }
 }
 
 function openConfig(ex: Exercise) {
@@ -182,6 +214,7 @@ function confirmConfig() {
     sets: configForm.value.sets,
     reps: configForm.value.reps,
     dayOfWeek: props.mode === 'add-to-plan' ? configForm.value.dayOfWeek : undefined,
+    isNew: true,
   }]
   configVisible.value = false
 }
@@ -197,6 +230,7 @@ function addCustom() {
   basket.value = [...basket.value, {
     name, muscleGroup: group, sets: 4, reps: 10,
     dayOfWeek: props.mode === 'add-to-plan' ? (props.defaultDay ?? 1) : undefined,
+    isNew: true,
   }]
   customName.value = ''
 }
@@ -212,7 +246,21 @@ function toggleTips(id: number) {
 }
 
 function finish() {
-  emit('finish', [...basket.value])
+  if (props.mode === 'new-plan') {
+    emit('finish', [...basket.value])
+    return
+  }
+  // 编辑模式：与载入快照对比，计算 新增/修改/删除 差异一次性提交
+  const added = basket.value.filter((b) => b.isNew)
+  const updated = basket.value.filter((b) => {
+    if (b.isNew) return false
+    const o = original.value.find((x: any) => x.id === b.itemId)
+    return o && (o.sets !== b.sets || o.reps !== b.reps || o.dayOfWeek !== b.dayOfWeek)
+  })
+  const removed = original.value
+    .filter((o: any) => !basket.value.some((b) => b.itemId === o.id))
+    .map((o: any) => ({ itemId: o.id, name: o.exerciseName }))
+  emit('apply', { added, updated, removed })
 }
 </script>
 

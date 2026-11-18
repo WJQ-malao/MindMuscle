@@ -10,17 +10,15 @@
           {{ currentPlan.goal }}
         </span>
         <div class="toolbar-right">
-          <!-- 有计划时只显示编辑；无计划时才显示新建（新建会使旧计划归档，避免误触） -->
+          <!-- 有计划→编辑（打开动作选择器）；无计划→创建（同样先进选择器挑动作） -->
           <template v-if="plans.length">
-            <el-button :type="editMode ? 'warning' : 'primary'" plain @click="editMode = !editMode">
-              {{ editMode ? '完成编辑' : '编辑计划' }}
-            </el-button>
+            <el-button type="primary" plain @click="openAddPicker">编辑计划</el-button>
           </template>
           <el-button v-else type="primary" @click="openNewPlanPicker">创建计划</el-button>
         </div>
       </div>
 
-      <el-tabs v-if="items.length || editMode" v-model="day">
+      <el-tabs v-if="items.length" v-model="day">
         <el-tab-pane v-for="d in days" :key="d.value" :label="d.label" :name="String(d.value)">
           <el-table :data="itemsByDay(d.value)" stripe>
             <el-table-column prop="exerciseName" label="动作" min-width="160" />
@@ -28,21 +26,17 @@
             <el-table-column label="安排" width="150">
               <template #default="{ row }">{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}</template>
             </el-table-column>
-            <el-table-column label="操作" :width="editMode ? 180 : 110">
+            <el-table-column label="操作" width="110">
               <template #default="{ row }">
-                <template v-if="editMode">
-                  <el-button size="small" @click="openItemEdit(row)">编辑</el-button>
-                  <el-button type="danger" size="small" @click="removeItem(row)">删除</el-button>
-                </template>
-                <el-button v-else type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
+                <el-button type="primary" size="small" @click="openCheckin(row)">打卡</el-button>
               </template>
             </el-table-column>
           </el-table>
-          <div v-if="editMode" class="day-actions">
+          <div class="day-actions">
             <el-button type="primary" plain round size="small" @click="openAddPicker">＋ 添加动作</el-button>
             <span v-if="!itemsByDay(d.value).length" class="rest-tip">这一天还没有安排动作</span>
           </div>
-          <el-empty v-if="!editMode && !itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
+          <el-empty v-if="!itemsByDay(d.value).length" :image-size="60" description="这天是休息日" />
         </el-tab-pane>
       </el-tabs>
       <el-empty v-else-if="!loading && !plans.length" description="还没有训练计划">
@@ -54,41 +48,10 @@
       </el-empty>
     </el-card>
 
-    <!-- 添加/编辑动作 -->
-    <el-dialog v-model="itemVisible" :title="editingItem ? '编辑动作' : '添加动作'" width="440px">
-      <el-form label-width="90px">
-        <el-form-item label="肌群">
-          <el-select v-model="itemForm.muscleGroup" style="width: 100%" @change="onGroupChange">
-            <el-option v-for="m in muscleOptions" :key="m" :value="m" :label="m" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="动作">
-          <el-select v-model="itemForm.exerciseName" filterable style="width: 100%"
-                     placeholder="选择或输入动作名称" allow-create>
-            <el-option v-for="e in exercisesByGroup" :key="e.id" :value="e.name" :label="e.name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="训练日">
-          <el-select v-model="itemForm.dayOfWeek" style="width: 100%">
-            <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="组数">
-          <el-input-number v-model="itemForm.sets" :min="1" :max="30" />
-        </el-form-item>
-        <el-form-item :label="itemForm.muscleGroup === '有氧' ? '时长(分钟)' : '每组次数'">
-          <el-input-number v-model="itemForm.reps" :min="1" :max="100" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="itemVisible = false">取消</el-button>
-        <el-button type="primary" :loading="itemSaving" @click="saveItem">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 动作选择器：新建计划篮子 / 加入当前计划 双模式 -->
-    <ExercisePicker :visible="pickerVisible" :mode="pickerMode" :default-day="Number(day)"
-                    @close="pickerVisible = false" @finish="onPickerFinish" />
+    <!-- 动作选择器：创建计划篮子 / 编辑当前计划 双模式 -->
+    <ExercisePicker :visible="pickerVisible" :mode="pickerMode" :plan-id="currentPlanId"
+                    :default-day="Number(day)"
+                    @close="pickerVisible = false" @finish="onPickerFinish" @apply="onPickerApply" />
 
     <!-- 新建计划：填信息创建 -->
     <el-dialog v-model="newPlanVisible" title="创建训练计划" width="440px">
@@ -139,26 +102,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { exerciseApi, workoutApi, type Exercise, type WorkoutItem, type WorkoutPlan } from '../api'
-import ExercisePicker, { type BasketItem } from './ExercisePicker.vue'
+import { ElMessage } from 'element-plus'
+import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
+import ExercisePicker, { type ApplyDiff, type BasketItem } from './ExercisePicker.vue'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
-const muscleOptions = ['胸', '背', '腿', '肩', '手臂', '核心', '有氧']
 const day = ref(String(new Date().getDay() || 7))
 
 const plans = ref<WorkoutPlan[]>([])
 const items = ref<WorkoutItem[]>([])
-const exercises = ref<Exercise[]>([])
 const loading = ref(false)
 const currentPlanId = ref<number>()
-const editMode = ref(false)
-
-const itemVisible = ref(false)
-const itemSaving = ref(false)
-const editingItem = ref<WorkoutItem>()
-const itemForm = reactive({ exerciseName: '', muscleGroup: '胸', dayOfWeek: 1, sets: 4, reps: 10 })
 
 const newPlanVisible = ref(false)
 const planSaving = ref(false)
@@ -174,9 +129,6 @@ const checkinForm = reactive({ setsDone: 4, repsDone: 10, weightUsed: 0 })
 
 const currentPlan = computed(() => plans.value.find((p) => p.id === currentPlanId.value))
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
-/** 当前肌群下的动作库选项 */
-const exercisesByGroup = computed(() =>
-  exercises.value.filter((e) => e.muscleGroup === itemForm.muscleGroup))
 
 async function load() {
   loading.value = true
@@ -200,50 +152,6 @@ async function loadItems() {
   items.value = res.data
 }
 
-// ---- 动作添加/编辑 ----
-
-function onGroupChange() {
-  itemForm.exerciseName = ''
-}
-
-function openItemEdit(row: WorkoutItem) {
-  editingItem.value = row
-  itemForm.exerciseName = row.exerciseName
-  itemForm.muscleGroup = row.muscleGroup
-  itemForm.dayOfWeek = row.dayOfWeek
-  itemForm.sets = row.sets
-  itemForm.reps = row.reps
-  itemVisible.value = true
-}
-
-async function saveItem() {
-  if (!itemForm.exerciseName.trim()) {
-    ElMessage.warning('请填写动作名称')
-    return
-  }
-  itemSaving.value = true
-  try {
-    if (editingItem.value) {
-      await workoutApi.updateItem(editingItem.value.id, { ...itemForm })
-      ElMessage.success('已保存')
-    } else {
-      await workoutApi.addItem(currentPlanId.value!, { ...itemForm })
-      ElMessage.success('已添加')
-    }
-    itemVisible.value = false
-    loadItems()
-  } finally {
-    itemSaving.value = false
-  }
-}
-
-async function removeItem(row: WorkoutItem) {
-  await ElMessageBox.confirm(`确定删除「${row.exerciseName}」吗？`, '提示', { type: 'warning' })
-  await workoutApi.removeItem(row.id)
-  ElMessage.success('已删除')
-  loadItems()
-}
-
 // ---- 动作选择器：两种模式统一收口 ----
 
 function openNewPlanPicker() {
@@ -257,29 +165,47 @@ function openAddPicker() {
 }
 
 async function onPickerFinish(selected: BasketItem[]) {
-  if (pickerMode.value === 'new-plan') {
-    basket.value = selected
-    pickerVisible.value = false
-    newPlanForm.title = ''
-    newPlanVisible.value = true
-    return
-  }
-  // 加入当前计划：逐个入库
+  basket.value = selected
+  pickerVisible.value = false
+  newPlanForm.title = ''
+  newPlanVisible.value = true
+}
+
+/** 编辑计划：按差异一次性提交 新增/修改/删除 */
+async function onPickerApply(diff: ApplyDiff) {
   if (!currentPlanId.value) return
-  let ok = 0
-  for (const b of selected) {
+  let addOk = 0
+  let updateOk = 0
+  let removeOk = 0
+  for (const r of diff.removed) {
     try {
-      await workoutApi.addItem(currentPlanId.value, {
-        exerciseName: b.name,
-        muscleGroup: b.muscleGroup,
-        dayOfWeek: b.dayOfWeek ?? Number(day.value),
-        sets: b.sets,
-        reps: b.reps,
-      })
-      ok++
+      await workoutApi.removeItem(r.itemId)
+      removeOk++
     } catch { /* 拦截器已提示 */ }
   }
-  ElMessage.success(`已添加 ${ok} 个动作`)
+  for (const b of diff.updated) {
+    try {
+      await workoutApi.updateItem(b.itemId!, {
+        exerciseName: b.name, muscleGroup: b.muscleGroup,
+        dayOfWeek: b.dayOfWeek ?? 1, sets: b.sets, reps: b.reps,
+      })
+      updateOk++
+    } catch { /* 拦截器已提示 */ }
+  }
+  for (const b of diff.added) {
+    try {
+      await workoutApi.addItem(currentPlanId.value, {
+        exerciseName: b.name, muscleGroup: b.muscleGroup,
+        dayOfWeek: b.dayOfWeek ?? Number(day.value), sets: b.sets, reps: b.reps,
+      })
+      addOk++
+    } catch { /* 拦截器已提示 */ }
+  }
+  const parts: string[] = []
+  if (addOk) parts.push(`新增${addOk}`)
+  if (updateOk) parts.push(`修改${updateOk}`)
+  if (removeOk) parts.push(`删除${removeOk}`)
+  ElMessage.success(parts.length ? `已保存：${parts.join('，')}` : '没有需要保存的修改')
   pickerVisible.value = false
   loadItems()
 }
@@ -329,11 +255,7 @@ async function doCheckin() {
   }
 }
 
-onMounted(async () => {
-  load()
-  const res: any = await exerciseApi.list()
-  exercises.value = res.data
-})
+onMounted(load)
 </script>
 
 <style scoped>
