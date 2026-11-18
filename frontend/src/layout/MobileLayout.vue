@@ -15,9 +15,9 @@
 
 <script setup lang="ts">
 const tabs = [
-  { path: '/m/home', icon: '📊', label: '首页' },
+  { path: '/m/home', icon: '📊', label: '数据看板' },
   { path: '/m/chat', icon: '🤖', label: 'AI教练' },
-  { path: '/m/train', icon: '🏋️', label: '训练' },
+  { path: '/m/train', icon: '🏋️', label: '训练计划' },
   { path: '/m/profile', icon: '👤', label: '我的' },
 ]
 </script>
