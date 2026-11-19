@@ -334,7 +334,9 @@ async function applySelectedArchive() {
   if (props.mode === 'edit-day') {
     const dayItems = items.filter((it) => it.dayOfWeek === props.dayOfWeek)
     if (!dayItems.length) {
-      ElMessage.warning('该存档在这一天没有安排动作')
+      const covered = [...new Set(items.map((it) => it.dayOfWeek))].sort()
+      const coveredText = covered.map((d) => dayNames[d]).join('、') || '没有任何'
+      ElMessage.warning(`该存档只安排了${coveredText}，没有${dayNames[props.dayOfWeek ?? 1]}的动作`)
       return
     }
     basket.value = dayItems.map(toBasketItem)
