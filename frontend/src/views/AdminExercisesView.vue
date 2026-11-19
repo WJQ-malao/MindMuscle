@@ -2,12 +2,12 @@
   <div>
     <el-card shadow="hover">
       <div class="toolbar">
-        <el-select v-model="filterCategory" placeholder="全部分类" clearable style="width: 140px" @change="onFilterChange">
+        <el-select v-model="filterCategory" class="toolbar-select" placeholder="全部分类" clearable @change="onFilterChange">
           <el-option value="无氧" label="无氧（力量）" />
           <el-option value="有氧" label="有氧" />
         </el-select>
-        <el-select v-if="filterCategory !== '有氧'" v-model="filterGroup" placeholder="全部部位" clearable
-                   style="width: 140px" @change="load">
+        <el-select v-if="filterCategory !== '有氧'" v-model="filterGroup" class="toolbar-select" placeholder="全部部位" clearable
+                   @change="load">
           <el-option v-for="g in muscleOptions" :key="g" :value="g" :label="g" />
         </el-select>
         <el-button @click="resetFilters">重置</el-button>
@@ -33,8 +33,8 @@
             </template>
           </el-table-column>
           <el-table-column prop="name" label="动作名称" min-width="140" />
-          <el-table-column prop="muscleGroup" label="部位" width="90" />
-          <el-table-column label="器械" width="100">
+          <el-table-column v-if="!isMobile" prop="muscleGroup" label="部位" width="90" />
+          <el-table-column v-if="!isMobile" label="器械" width="100">
             <template #default="{ row }">{{ row.equipment || '—' }}</template>
           </el-table-column>
           <el-table-column label="动作要点" min-width="240">
@@ -42,8 +42,8 @@
               <span class="tips-cell">{{ row.tips || '—' }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="sort" label="排序" width="70" />
-          <el-table-column label="操作" width="150" fixed="right">
+          <el-table-column v-if="!isMobile" prop="sort" label="排序" width="70" />
+          <el-table-column label="操作" :width="isMobile ? 130 : 150" fixed="right">
             <template #default="{ row }">
               <el-button size="small" @click="openEdit(row)">编辑</el-button>
               <el-button type="danger" size="small" @click="remove(row)">删除</el-button>
@@ -110,6 +110,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { exerciseApi, type Exercise } from '../api'
 
 const muscleOptions = ['胸', '背', '腿', '肩', '手臂', '核心']
+/** 窄屏隐藏次要表格列，避免复用PC页时列被挤爆 */
+const isMobile = window.innerWidth < 768
 const equipmentOptions = ['杠铃', '哑铃', '器械', '自重']
 const groupColor: Record<string, string> = {
   胸: '#f56c6c', 背: '#e6a23c', 腿: '#909399',
@@ -244,6 +246,7 @@ onMounted(load)
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.toolbar-select { width: 140px; }
 .count-tip { color: #999; font-size: 13px; }
 .add-btn { margin-left: auto; }
 .group-section { margin-bottom: 18px; }
@@ -266,4 +269,13 @@ onMounted(load)
 .img-field { display: flex; align-items: center; gap: 12px; }
 .img-preview { width: 64px; height: 64px; border-radius: 8px; border: 1px solid #eee; }
 .img-tip { color: #aaa; font-size: 12px; }
+
+/* 移动端：工具栏换行、筛选项弹性占满，操作按钮挤时自然换行 */
+@media (max-width: 768px) {
+  .toolbar { flex-wrap: wrap; row-gap: 8px; }
+  .toolbar-select { width: auto; flex: 1 1 130px; }
+  .add-btn { margin-left: 0; flex: 1; }
+  .count-tip { white-space: nowrap; }
+  .ex-img, .ex-icon { width: 40px; height: 40px; }
+}
 </style>

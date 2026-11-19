@@ -8,9 +8,9 @@
         </div>
       </template>
       <el-table :data="rows" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column v-if="!isMobile" prop="id" label="ID" width="70" />
         <el-table-column prop="username" label="用户名" min-width="120" />
-        <el-table-column prop="nickname" label="昵称" min-width="120" />
+        <el-table-column v-if="!isMobile" prop="nickname" label="昵称" min-width="120" />
         <el-table-column label="角色" min-width="160">
           <template #default="{ row }">
             <el-tag v-for="r in row.roles" :key="r" size="small"
@@ -19,8 +19,8 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="注册时间" width="180" />
-        <el-table-column label="操作" width="290" fixed="right">
+        <el-table-column v-if="!isMobile" prop="createTime" label="注册时间" width="180" />
+        <el-table-column label="操作" :width="isMobile ? 150 : 290" fixed="right">
           <template #default="{ row }">
             <el-button size="small" text type="primary" @click="openProfile(row)">查看资料</el-button>
             <el-button size="small" text :disabled="row.id === myId" @click="openEdit(row)">调整角色</el-button>
@@ -99,6 +99,8 @@ interface AdminUser {
 
 const rows = ref<AdminUser[]>([])
 const loading = ref(false)
+/** 窄屏隐藏次要表格列 + 收窄操作列 */
+const isMobile = window.innerWidth < 768
 const dialogVisible = ref(false)
 const saving = ref(false)
 const current = ref<AdminUser>()
