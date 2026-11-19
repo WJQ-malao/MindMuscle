@@ -91,10 +91,12 @@ export const workoutApi = {
   checkin: (data: { itemId: number; setNo: number; repsDone: number; weightUsed?: number }) =>
     request.post('/checkins', data),
   recent: () => request.get('/checkins/recent'),
-  /** 今天已打卡: {动作ID: [已打组号]} */
-  todayChecked: (): Promise<any> => request.get('/checkins/today'),
-  /** 撤销今天某动作某一组的打卡 */
-  undoSetCheckin: (itemId: number, setNo: number) => request.delete(`/checkins/today/${itemId}/${setNo}`),
+  /** 已打卡: {动作ID: [已打组号]}，默认今天，可传 date=YYYY-MM-DD 查历史日期 */
+  todayChecked: (date?: string): Promise<any> =>
+    request.get('/checkins/today', { params: date ? { date } : {} }),
+  /** 撤销某动作某一组的打卡，可传 date 撤销历史记录 */
+  undoSetCheckin: (itemId: number, setNo: number, date?: string) =>
+    request.delete(`/checkins/today/${itemId}/${setNo}`, { params: date ? { date } : {} }),
 }
 
 export interface Exercise {
@@ -109,9 +111,14 @@ export interface Exercise {
 
 export const exerciseApi = {
   list: (): Promise<any> => request.get('/exercises'),
-  create: (data: Omit<Exercise, 'id' | 'imageUrl'>) => request.post('/exercises', data),
-  update: (id: number, data: Omit<Exercise, 'id' | 'imageUrl'>) => request.put(`/exercises/${id}`, data),
+  create: (data: Omit<Exercise, 'id'>) => request.post('/exercises', data),
+  update: (id: number, data: Omit<Exercise, 'id'>) => request.put(`/exercises/${id}`, data),
   remove: (id: number) => request.delete(`/exercises/${id}`),
+  uploadImage: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request.post('/exercises/upload-image', form)
+  },
 }
 
 export const knowledgeApi = {

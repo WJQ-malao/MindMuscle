@@ -10,6 +10,7 @@
                    style="width: 140px" @change="load">
           <el-option v-for="g in muscleOptions" :key="g" :value="g" :label="g" />
         </el-select>
+        <el-button @click="resetFilters">重置</el-button>
         <span class="count-tip">共 {{ list.length }} 个动作</span>
         <el-button type="primary" class="add-btn" @click="openEdit()">＋ 新增动作</el-button>
       </div>
@@ -70,14 +71,26 @@
         <el-form-item label="动作名称">
           <el-input v-model="form.name" placeholder="如：杠铃卧推" maxlength="100" />
         </el-form-item>
-        <el-form-item label="器械">
-          <el-select v-model="form.equipment" style="width: 100%" clearable placeholder="可空">
+        <el-form-item v-if="form.category !== '有氧'" label="器械">
+          <el-select v-model="form.equipment" style="width: 100%" placeholder="请选择器械">
             <el-option v-for="e in equipmentOptions" :key="e" :value="e" :label="e" />
           </el-select>
         </el-form-item>
         <el-form-item label="动作要点">
           <el-input v-model="form.tips" type="textarea" :rows="3" maxlength="2000"
                     placeholder="选填，动作标准与注意事项" />
+        </el-form-item>
+        <el-form-item label="插图">
+          <div class="img-field">
+            <el-image v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="img-preview"
+                      :preview-src-list="[form.imageUrl]" preview-teleported />
+            <el-upload v-else :http-request="uploadImage" :show-file-list="false"
+                       accept="image/png,image/jpeg,image/gif,image/webp">
+              <el-button :loading="uploading">{{ uploading ? '上传中' : '上传图片' }}</el-button>
+            </el-upload>
+            <el-button v-if="form.imageUrl" type="danger" link @click="form.imageUrl = ''">清除插图</el-button>
+            <span v-if="!form.imageUrl" class="img-tip">选填，png/jpg/gif/webp，≤5MB</span>
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sort" :min="0" :max="9999" />
@@ -97,7 +110,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { exerciseApi, type Exercise } from '../api'
 
 const muscleOptions = ['胸', '背', '腿', '肩', '手臂', '核心']
-const equipmentOptions = ['杠铃', '哑铃', '器械', '自重', '有氧']
+const equipmentOptions = ['杠铃', '哑铃', '器械', '自重']
 const groupColor: Record<string, string> = {
   胸: '#f56c6c', 背: '#e6a23c', 腿: '#909399',
   肩: '#409eff', 手臂: '#b88230', 核心: '#26a69a', 有氧: '#67c23a',
@@ -111,7 +124,8 @@ const filterGroup = ref('')
 const editVisible = ref(false)
 const saving = ref(false)
 const editing = ref<Exercise>()
-const form = reactive({ category: '无氧', name: '', muscleGroup: '胸', equipment: '', tips: '', sort: 0 })
+const form = reactive({ category: '无氧', name: '', muscleGroup: '胸', equipment: '', tips: '', imageUrl: '', sort: 0 })
+const uploading = ref(false)
 
 /** 分组展示：有氧一组；无氧按部位各一组 */
 const sections = computed(() => {
@@ -147,9 +161,27 @@ function onFilterChange() {
   load()
 }
 
+function resetFilters() {
+  filterCategory.value = ''
+  filterGroup.value = ''
+  load()
+}
+
 function onCategoryChange() {
-  if (form.category === '有氧') form.equipment = '有氧'
-  else if (form.equipment === '有氧') form.equipment = ''
+  if (form.category === '有氧') form.equipment = ''
+}
+
+async function uploadImage({ file }: { file: File }) {
+  uploading.value = true
+  try {
+    const res: any = await exerciseApi.uploadImage(file)
+    form.imageUrl = res.data.url
+    ElMessage.success('插图已上传')
+  } catch {
+    // 错误提示已由拦截器统一弹出
+  } finally {
+    uploading.value = false
+  }
 }
 
 function openEdit(row?: Exercise) {
@@ -157,8 +189,9 @@ function openEdit(row?: Exercise) {
   form.category = row ? (row.muscleGroup === '有氧' ? '有氧' : '无氧') : '无氧'
   form.name = row?.name ?? ''
   form.muscleGroup = row && row.muscleGroup !== '有氧' ? row.muscleGroup : '胸'
-  form.equipment = row?.equipment ?? ''
+  form.equipment = row && row.muscleGroup !== '有氧' ? (row.equipment ?? '') : ''
   form.tips = row?.tips ?? ''
+  form.imageUrl = row?.imageUrl ?? ''
   form.sort = row?.sort ?? 0
   editVisible.value = true
 }
@@ -168,6 +201,10 @@ async function save() {
     ElMessage.warning('请填写动作名称')
     return
   }
+  if (form.category !== '有氧' && !form.equipment) {
+    ElMessage.warning('请选择器械')
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -175,6 +212,7 @@ async function save() {
       muscleGroup: form.category === '有氧' ? '有氧' : form.muscleGroup,
       equipment: form.equipment,
       tips: form.tips,
+      imageUrl: form.imageUrl,
       sort: form.sort,
     }
     if (editing.value) {
@@ -182,7 +220,7 @@ async function save() {
       ElMessage.success('已保存')
     } else {
       await exerciseApi.create(payload)
-      ElMessage.success('已新增（无插图，选择器中显示为肌群色块）')
+      ElMessage.success('已新增')
     }
     editVisible.value = false
     load()
@@ -225,4 +263,7 @@ onMounted(load)
   display: flex; align-items: center; justify-content: center;
 }
 .tips-cell { color: #888; font-size: 13px; }
+.img-field { display: flex; align-items: center; gap: 12px; }
+.img-preview { width: 64px; height: 64px; border-radius: 8px; border: 1px solid #eee; }
+.img-tip { color: #aaa; font-size: 12px; }
 </style>

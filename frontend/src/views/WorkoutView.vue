@@ -9,19 +9,21 @@
         <span v-if="currentPlan" class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
           {{ currentPlan.goal }}
         </span>
+        <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
+                        style="width: 150px" placeholder="选择日期" @change="onViewDateChange" />
         <div class="toolbar-right">
-          <!-- 按天维度: 当天有内容→编辑; 当天为空→创建(往现有计划补这一天); 无计划→创建计划容器 -->
+          <!-- 按天维度: 当天有内容→编辑; 当天为空→添加动作(往现有计划补这一天); 无计划→创建计划容器 -->
           <el-button v-if="!plans.length" type="primary" @click="openNewPlanPicker">创建计划</el-button>
           <el-button v-else-if="currentDayItems.length" type="primary" plain @click="openDayPicker">编辑计划</el-button>
-          <el-button v-else type="primary" @click="openDayPicker">创建计划</el-button>
+          <el-button v-else type="primary" @click="openDayPicker">添加动作</el-button>
         </div>
       </div>
 
-      <el-tabs v-if="items.length" v-model="day">
-        <el-tab-pane v-for="d in days" :key="d.value" :name="String(d.value)">
+      <el-tabs v-if="items.length" v-model="day" @tab-change="loadChecked">
+        <el-tab-pane v-for="(d, idx) in days" :key="d.value" :name="String(d.value)">
           <template #label>
-            <span class="tab-label">
-              {{ d.label }}
+            <span class="tab-label" :class="{ today: isTabToday(idx) }">
+              {{ d.label }} {{ fmtMD(weekDates[idx]) }}
               <span v-if="!itemsByDay(d.value).length" class="day-dot" title="未安排"></span>
             </span>
           </template>
@@ -33,24 +35,18 @@
                 {{ row.weightKg ? row.weightKg + 'kg · ' : '' }}{{ row.sets }} 组 x {{ row.reps }}{{ row.muscleGroup === '有氧' ? ' 分钟' : ' 次' }}
               </template>
             </el-table-column>
-            <el-table-column label="打卡" width="230">
+            <el-table-column label="打卡" min-width="230">
               <template #default="{ row }">
-                <!-- 力量动作：按组打卡，组号格子逐个点亮 -->
-                <template v-if="row.muscleGroup !== '有氧'">
+                <!-- 所有动作统一按组打卡，组号格子逐个点亮；查看历史日期时只读 -->
+                <div class="set-chips">
                   <span v-for="i in row.sets" :key="i"
-                        class="set-chip" :class="{ done: isSetDone(row.id, i) }"
-                        :title="isSetDone(row.id, i) ? `第${i}组已完成，点击撤销` : `打卡第${i}组`"
-                        @click="onSetChip(row, i)">
+                        class="set-chip" :class="{ done: isSetDone(row.id, i), readonly: !isViewingToday }"
+                        :title="chipTitle(row, i)"
+                        @click="isViewingToday && onSetChip(row, i)">
                     {{ isSetDone(row.id, i) ? '✓' : i }}
                   </span>
                   <span class="set-progress">{{ doneCount(row.id) }}/{{ row.sets }}</span>
-                </template>
-                <!-- 有氧动作：整项一次打卡 -->
-                <template v-else>
-                  <el-button v-if="isSetDone(row.id, 1)" type="danger" plain size="small"
-                             @click="undoSet(row, 1)">已打卡</el-button>
-                  <el-button v-else type="success" size="small" @click="openCheckin(row, 1)">打卡</el-button>
-                </template>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -101,10 +97,10 @@
         <el-form-item label="动作">
           <span>{{ currentItem?.exerciseName }} · 第 {{ checkinForm.setNo }} 组</span>
         </el-form-item>
-        <el-form-item label="完成次数">
+        <el-form-item :label="currentItem?.muscleGroup === '有氧' ? '完成时长(分钟)' : '完成次数'">
           <el-input-number v-model="checkinForm.repsDone" :min="1" :max="100" />
         </el-form-item>
-        <el-form-item label="重量 (kg)">
+        <el-form-item v-if="currentItem?.muscleGroup !== '有氧'" label="重量 (kg)">
           <el-input-number v-model="checkinForm.weightUsed" :min="0" :max="500" :precision="1" />
         </el-form-item>
       </el-form>
@@ -125,6 +121,38 @@ import ExercisePicker, { type ApplyDiff, type BasketItem } from './ExercisePicke
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const day = ref(String(new Date().getDay() || 7))
+
+/** 查看日期：默认今天；日期选择器切换后，页签显示该日期所在周的 周几+月/日 */
+const viewDate = ref(new Date())
+const pad = (n: number) => String(n).padStart(2, '0')
+const fmtISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const fmtMD = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
+const todayISO = fmtISO(new Date())
+/** 查看日期所在周（周一起）的 7 个日期 */
+const weekDates = computed(() => {
+  const base = new Date(viewDate.value)
+  const mon = new Date(base)
+  mon.setDate(base.getDate() - ((base.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon)
+    d.setDate(mon.getDate() + i)
+    return d
+  })
+})
+const currentTabDate = computed(() => weekDates.value[Number(day.value) - 1])
+/** 是否正在查看今天（只有今天可以打卡/撤销） */
+const isViewingToday = computed(() => fmtISO(currentTabDate.value) === todayISO)
+const isTabToday = (idx: number) => fmtISO(weekDates.value[idx]) === todayISO
+
+function onViewDateChange() {
+  day.value = String(viewDate.value.getDay() || 7)
+  loadChecked()
+}
+
+function chipTitle(row: WorkoutItem, setNo: number) {
+  if (!isViewingToday.value) return `${fmtMD(currentTabDate.value)} 的记录（仅今天可打卡）`
+  return isSetDone(row.id, setNo) ? `第${setNo}组已完成，点击撤销` : `打卡第${setNo}组`
+}
 
 const plans = ref<WorkoutPlan[]>([])
 const items = ref<WorkoutItem[]>([])
@@ -168,10 +196,10 @@ async function loadItems() {
   }
   const res: any = await workoutApi.items(currentPlanId.value)
   items.value = res.data
-  await loadCheckedToday()
+  await loadChecked()
 }
 
-/** 今天已打卡的"动作ID→已打组号列表"（按组打卡状态） */
+/** 查看日期已打卡的"动作ID→已打组号列表"（按组打卡状态） */
 const checkedToday = ref<Record<number, number[]>>({})
 
 function isSetDone(itemId: number, setNo: number) {
@@ -182,8 +210,8 @@ function doneCount(itemId: number) {
   return (checkedToday.value[itemId] ?? []).length
 }
 
-async function loadCheckedToday() {
-  const res: any = await workoutApi.todayChecked()
+async function loadChecked() {
+  const res: any = await workoutApi.todayChecked(fmtISO(currentTabDate.value))
   checkedToday.value = res.data ?? {}
 }
 
@@ -297,7 +325,7 @@ async function doCheckin() {
     await workoutApi.checkin({ itemId: currentItem.value!.id, ...checkinForm })
     ElMessage.success(`第 ${checkinForm.setNo} 组打卡成功`)
     checkinVisible.value = false
-    await loadCheckedToday()
+    await loadChecked()
   } finally {
     checkinSaving.value = false
   }
@@ -310,9 +338,9 @@ async function undoSet(row: WorkoutItem, setNo: number) {
     '撤销组打卡',
     { type: 'warning', confirmButtonText: '撤销', cancelButtonText: '取消' },
   )
-  await workoutApi.undoSetCheckin(row.id, setNo)
+  await workoutApi.undoSetCheckin(row.id, setNo, fmtISO(currentTabDate.value))
   ElMessage.success('已撤销该组')
-  await loadCheckedToday()
+  await loadChecked()
 }
 
 onMounted(load)
@@ -328,20 +356,27 @@ onMounted(load)
 }
 .goal-chip.archived { background: #f4f4f5; color: #909399; }
 .tab-label { display: inline-flex; align-items: center; gap: 5px; }
+.tab-label.today { color: #409eff; font-weight: 600; }
 .day-badge {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: #409eff; color: #fff; font-size: 11px; line-height: 18px;
 }
 .day-dot { width: 6px; height: 6px; border-radius: 50%; background: #dcdfe6; display: inline-block; }
 /* 按组打卡格子 */
+.set-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .set-chip {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; margin-right: 6px; border-radius: 6px;
+  width: 26px; height: 26px; border-radius: 6px;
   border: 1px solid #dcdfe6; color: #909399; font-size: 12px; cursor: pointer;
   user-select: none;
 }
 .set-chip:hover { border-color: #67c23a; color: #67c23a; }
 .set-chip.done { background: #67c23a; border-color: #67c23a; color: #fff; }
 .set-chip.done:hover { background: #f56c6c; border-color: #f56c6c; }
+/* 查看历史日期：打卡格子只读 */
+.set-chip.readonly { cursor: default; }
+.set-chip.readonly:hover { border-color: #dcdfe6; color: #909399; }
+.set-chip.readonly.done { background: #67c23a; border-color: #67c23a; color: #fff; }
+.set-chip.readonly.done:hover { background: #67c23a; border-color: #67c23a; color: #fff; }
 .set-progress { color: #c0c4cc; font-size: 12px; margin-left: 4px; }
 </style>

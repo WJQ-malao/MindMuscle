@@ -1,7 +1,7 @@
 <template>
   <el-container class="layout">
     <el-aside width="220px" class="aside">
-      <div class="logo">🏋️ 智能健身系统</div>
+      <div class="logo">🏋️ MindMuscle</div>
       <el-menu :default-active="$route.path" router background-color="#1f2d3d" text-color="#bfcbd9"
                active-text-color="#409eff">
         <!-- ===== 管理员：平台管理菜单 ===== -->
@@ -64,7 +64,7 @@ function onCommand(cmd: string) {
 .aside { background: #1f2d3d; }
 .logo {
   height: 60px; line-height: 60px; text-align: center;
-  color: #fff; font-size: 17px; font-weight: 600;
+  color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.5px;
 }
 .header {
   display: flex; justify-content: space-between; align-items: center;

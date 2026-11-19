@@ -142,9 +142,12 @@ function initHeatmap(el: HTMLElement, rows: any[]) {
   }
   const max = Math.max(1, ...rows.map((r) => Number(r.count)))
   chart.setOption({
-    tooltip: { formatter: (p: any) => `${p.data[0]}：打卡 ${p.data[1]} 次` },
+    tooltip: { formatter: (p: any) => `${p.data[0]}：训练 ${p.data[1]} 个动作` },
     visualMap: { min: 0, max, type: 'piecewise', orient: 'horizontal', left: 'center',
-      pieces: [{ max: 0, color: '#ebedf0' }, { min: 1, color: '#9be9a8' }, { min: 2, color: '#40c463' }, { min: 4, color: '#30a14e' }] },
+      pieces: [{ max: 0, color: '#ebedf0', label: '0' },
+               { min: 1, max: 1, color: '#9be9a8', label: '1 个' },
+               { min: 2, max: 3, color: '#40c463', label: '2-3 个' },
+               { min: 4, color: '#30a14e', label: '≥4 个' }] },
     calendar: { range: [days[0], days[days.length - 1]], cellSize: ['auto', 14], top: 60 },
     series: [{
       type: 'heatmap',
