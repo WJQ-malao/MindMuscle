@@ -103,6 +103,16 @@ export interface PlanArchiveItem {
   weightKg?: number | null
 }
 
+/** 存档内容项（创建/替换存档时的载荷） */
+export interface ArchiveItemPayload {
+  dayOfWeek: number
+  exerciseName: string
+  muscleGroup: string
+  sets: number
+  reps: number
+  weightKg?: number | null
+}
+
 export const workoutApi = {
   plans: () => request.get('/plans'),
   createPlan: (data: {
@@ -132,6 +142,12 @@ export const archiveApi = {
   items: (archiveId: number) => request.get(`/plan-archives/${archiveId}/items`),
   /** 把训练计划快照保存为存档 */
   create: (data: { planId: number; name: string }) => request.post('/plan-archives', data),
+  /** 从动作清单直接创建存档（选择器里"存为存档"） */
+  createFromItems: (data: { name: string; goal?: string; items: ArchiveItemPayload[] }) =>
+    request.post('/plan-archives/from-items', data),
+  /** 整体替换存档内容（存档编辑） */
+  replaceItems: (archiveId: number, data: { name?: string; goal?: string; items: ArchiveItemPayload[] }) =>
+    request.put(`/plan-archives/${archiveId}/items`, data),
   rename: (archiveId: number, name: string) =>
     request.put(`/plan-archives/${archiveId}`, { name }),
   remove: (archiveId: number) => request.delete(`/plan-archives/${archiveId}`),

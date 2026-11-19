@@ -51,11 +51,16 @@
       <!-- 右侧：已选清单（可修改组次/训练日，可移除） -->
       <aside class="basket-panel">
         <div class="basket-title">
-          {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `${dayNames[props.dayOfWeek ?? 1]} 已安排（${basket.length}）` }}
+          {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : mode === 'edit-archive' ? `存档共 ${basket.length} 个` : `${dayNames[props.dayOfWeek ?? 1]} 已安排（${basket.length}）` }}
         </div>
-        <el-button size="small" plain style="align-self: flex-start" @click="openArchivePicker">
-          📁 使用存档
-        </el-button>
+        <div class="basket-archive-actions">
+          <el-button v-if="mode !== 'edit-archive'" size="small" plain @click="saveBasketAsArchive">
+            💾 存为存档
+          </el-button>
+          <el-button v-if="mode !== 'edit-archive'" size="small" plain @click="openArchivePicker">
+            📁 使用存档
+          </el-button>
+        </div>
         <div class="basket-list">
           <div v-for="(b, i) in sortedBasket" :key="b.itemId ?? 'new-' + i" class="basket-item">
             <div class="basket-head">
@@ -76,7 +81,7 @@
               <el-input-number v-model="b.weightKg" :min="0" :max="500" :precision="1" size="small"
                                style="width: 110px" placeholder="自重" />
             </div>
-            <div v-if="false" class="basket-fields">
+            <div v-if="mode === 'edit-archive'" class="basket-fields">
               <span>训练日</span>
               <el-select v-model="b.dayOfWeek" size="small" style="width: 100px">
                 <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
@@ -122,7 +127,7 @@
           <el-input-number v-model="configForm.weightKg" :min="0" :max="500" :precision="1"
                            size="large" style="width: 100%" placeholder="自重可不填" />
         </el-form-item>
-        <el-form-item v-if="false" label="训练日">
+        <el-form-item v-if="configEx && mode === 'edit-archive'" label="训练日">
           <el-select v-model="configForm.dayOfWeek" size="large" style="width: 100%">
             <el-option v-for="d in days" :key="d.value" :value="d.value" :label="d.label" />
           </el-select>
@@ -138,8 +143,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { archiveApi, exerciseApi, workoutApi, type Exercise, type PlanArchive, type PlanArchiveItem } from '../api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { archiveApi, exerciseApi, workoutApi, type ArchiveItemPayload, type Exercise, type PlanArchive, type PlanArchiveItem } from '../api'
 
 export interface BasketItem {
   /** 已有动作对应 workout_item 主键；新增动作为空 */
@@ -162,16 +167,19 @@ export interface ApplyDiff {
 
 const props = defineProps<{
   visible: boolean
-  /** new-plan: 新建计划篮子；add-to-plan: 编辑/加入当前计划（载入现有动作） */
-  mode: 'new-plan' | 'edit-day'
+  /** new-plan: 新建计划篮子；edit-day: 编辑/加入当前计划某一天；edit-archive: 编辑存档内容 */
+  mode: 'new-plan' | 'edit-day' | 'edit-archive'
   planId?: number
   /** 按天编辑时锁定训练日（1-7） */
   dayOfWeek?: number
+  /** edit-archive 模式：目标存档ID */
+  archiveId?: number
 }>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'finish', basket: BasketItem[]): void
   (e: 'apply', diff: ApplyDiff): void
+  (e: 'save-items', items: ArchiveItemPayload[]): void
 }>()
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -199,7 +207,9 @@ const configEx = ref<Exercise>()
 const configForm = ref({ sets: 4, reps: 10, dayOfWeek: 1, weightKg: undefined as number | undefined })
 
 const pickerTitle = computed(() =>
-  props.mode === 'new-plan' ? '选择动作（创建计划）' : `${dayNames[props.dayOfWeek ?? 1]} · 编辑训练内容`)
+  props.mode === 'new-plan' ? '选择动作（创建计划）'
+    : props.mode === 'edit-archive' ? '编辑存档内容'
+    : `${dayNames[props.dayOfWeek ?? 1]} · 编辑训练内容`)
 
 const filtered = computed(() =>
   exercises.value.filter((e) =>
@@ -207,9 +217,9 @@ const filtered = computed(() =>
     (currentEquip.value === '全部' || e.equipment === currentEquip.value) &&
     (!keyword.value || e.name.includes(keyword.value))))
 
-/** 右栏按训练日排序展示（仅编辑模式有意义，新建模式保持挑选顺序） */
+/** 右栏展示：编辑存档模式按训练日排序，其余保持挑选顺序 */
 const sortedBasket = computed(() =>
-  false && props.mode === 'edit-day'
+  props.mode === 'edit-archive'
     ? [...basket.value].sort((a, b) => (a.dayOfWeek ?? 9) - (b.dayOfWeek ?? 9))
     : basket.value)
 
@@ -246,6 +256,26 @@ async function onOpen() {
       loading.value = false
     }
   }
+  // 编辑存档模式：载入存档全部动作（跨天），可改组次/训练日/移除
+  if (props.mode === 'edit-archive' && props.archiveId) {
+    loading.value = true
+    try {
+      const res: any = await archiveApi.items(props.archiveId)
+      original.value = res.data
+      basket.value = res.data.map((it: any) => ({
+        itemId: it.id,
+        name: it.exerciseName,
+        muscleGroup: it.muscleGroup,
+        sets: it.sets,
+        reps: it.reps,
+        weightKg: it.weightKg ?? null,
+        dayOfWeek: it.dayOfWeek,
+        isNew: false,
+      }))
+    } finally {
+      loading.value = false
+    }
+  }
 }
 
 function openConfig(ex: Exercise) {
@@ -262,7 +292,7 @@ function confirmConfig() {
     sets: configForm.value.sets,
     reps: configForm.value.reps,
     weightKg: configForm.value.weightKg == null ? null : configForm.value.weightKg,
-    dayOfWeek: props.mode === 'edit-day' ? configForm.value.dayOfWeek : undefined,
+    dayOfWeek: props.mode === 'new-plan' ? undefined : configForm.value.dayOfWeek,
     isNew: true,
   }]
   configVisible.value = false
@@ -278,7 +308,7 @@ function addCustom() {
   const group = currentGroup.value === '全部' ? '核心' : currentGroup.value
   basket.value = [...basket.value, {
     name, muscleGroup: group, sets: 4, reps: 10, weightKg: null,
-    dayOfWeek: props.mode === 'edit-day' ? (props.dayOfWeek ?? 1) : undefined,
+    dayOfWeek: props.mode === 'new-plan' ? undefined : (props.dayOfWeek ?? 1),
     isNew: true,
   }]
   customName.value = ''
@@ -349,7 +379,47 @@ async function applySelectedArchive() {
   ElMessage.success('已载入存档内容，确认后保存')
 }
 
+/** 把当前已选内容直接存为新的存档（编辑当天→全部归当天；新建计划→保留已带训练日） */
+async function saveBasketAsArchive() {
+  if (!basket.value.length) {
+    ElMessage.warning('请先选择动作')
+    return
+  }
+  const { value } = await ElMessageBox.prompt('把当前已选内容存为新的存档模板', '存为存档', {
+    inputPlaceholder: '存档名称，如：上肢力量日',
+    confirmButtonText: '保存',
+    cancelButtonText: '取消',
+  })
+  const name = (value ?? '').trim()
+  if (!name) {
+    ElMessage.warning('请填写存档名称')
+    return
+  }
+  const items: ArchiveItemPayload[] = basket.value.map((b) => ({
+    dayOfWeek: props.mode === 'edit-day' ? (props.dayOfWeek ?? 1) : (b.dayOfWeek ?? 1),
+    exerciseName: b.name,
+    muscleGroup: b.muscleGroup,
+    sets: b.sets,
+    reps: b.reps,
+    weightKg: b.weightKg ?? null,
+  }))
+  await archiveApi.createFromItems({ name, items })
+  ElMessage.success('已存为存档，可在「我的 → 计划存档」查看和编辑')
+}
+
 function finish() {
+  if (props.mode === 'edit-archive') {
+    // 编辑存档：整体提交当前清单（增删改合并为一次替换）
+    emit('save-items', basket.value.map((b) => ({
+      dayOfWeek: b.dayOfWeek ?? 1,
+      exerciseName: b.name,
+      muscleGroup: b.muscleGroup,
+      sets: b.sets,
+      reps: b.reps,
+      weightKg: b.weightKg ?? null,
+    })))
+    return
+  }
   if (props.mode === 'new-plan') {
     emit('finish', [...basket.value])
     return
@@ -410,6 +480,7 @@ function finish() {
   color: #888; font-size: 12px; cursor: pointer; line-height: 1.6;
 }
 .manual-add { display: flex; gap: 10px; align-items: center; }
+.basket-archive-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .archive-options { min-height: 80px; }
 .archive-radio-group { display: flex; flex-direction: column; gap: 4px; }
 .archive-radio { margin-right: 0; height: auto; padding: 6px 0; }

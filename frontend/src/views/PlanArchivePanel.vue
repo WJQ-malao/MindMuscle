@@ -13,13 +13,18 @@
             <div class="archive-sub">{{ a.goal || '未设目标' }} · {{ (a.createTime || '').slice(0, 10) }}</div>
           </div>
           <div class="archive-ops">
-            <el-button size="small" text type="primary" @click="openRename(a)">重命名</el-button>
+            <el-button size="small" text type="primary" @click="openEdit(a)">编辑</el-button>
+            <el-button size="small" text @click="openRename(a)">重命名</el-button>
             <el-button size="small" text type="danger" @click="remove(a)">删除</el-button>
           </div>
         </div>
       </div>
       <el-empty v-else :image-size="60" description="还没有存档，可在训练计划页把当前计划存为模板" />
     </el-card>
+
+    <!-- 编辑存档内容：复用动作选择器（edit-archive 模式，按天分组、可改训练日） -->
+    <ExercisePicker :visible="pickerVisible" mode="edit-archive" :archive-id="editTarget?.id"
+                    @close="pickerVisible = false" @save-items="onSaveItems" />
 
     <el-dialog v-model="renameVisible" title="重命名存档" width="88%" style="max-width: 420px">
       <el-input v-model="renameValue" placeholder="存档名称" maxlength="100" />
@@ -34,7 +39,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { archiveApi, type PlanArchive } from '../api'
+import { archiveApi, type ArchiveItemPayload, type PlanArchive } from '../api'
+import ExercisePicker from './ExercisePicker.vue'
 
 const rows = ref<PlanArchive[]>([])
 const renameVisible = ref(false)
@@ -42,9 +48,25 @@ const renameValue = ref('')
 const renameTarget = ref<PlanArchive>()
 const saving = ref(false)
 
+const pickerVisible = ref(false)
+const editTarget = ref<PlanArchive>()
+
 async function load() {
   const res: any = await archiveApi.list()
   rows.value = res.data ?? []
+}
+
+/** 编辑存档内容：打开选择器，保存时整体替换 */
+function openEdit(a: PlanArchive) {
+  editTarget.value = a
+  pickerVisible.value = true
+}
+
+async function onSaveItems(items: ArchiveItemPayload[]) {
+  await archiveApi.replaceItems(editTarget.value!.id, { name: editTarget.value!.name, items })
+  ElMessage.success('存档已更新')
+  pickerVisible.value = false
+  load()
 }
 
 function openRename(a: PlanArchive) {

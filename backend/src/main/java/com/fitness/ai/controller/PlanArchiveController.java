@@ -2,6 +2,7 @@ package com.fitness.ai.controller;
 
 import com.fitness.ai.common.Result;
 import com.fitness.ai.dto.ArchiveCreateRequest;
+import com.fitness.ai.dto.ArchiveItemsRequest;
 import com.fitness.ai.dto.ArchiveRenameRequest;
 import com.fitness.ai.entity.PlanArchive;
 import com.fitness.ai.entity.PlanArchiveItem;
@@ -46,6 +47,21 @@ public class PlanArchiveController {
     public Result<PlanArchive> create(@Valid @RequestBody ArchiveCreateRequest request) {
         return Result.ok(archiveService.createFromPlan(
                 UserContext.getUserId(), request.planId(), request.name()));
+    }
+
+    /** 从动作清单直接创建存档（选择器里"存为存档"） */
+    @PostMapping("/from-items")
+    public Result<PlanArchive> createFromItems(@Valid @RequestBody ArchiveItemsRequest request) {
+        return Result.ok(archiveService.createFromItems(
+                UserContext.getUserId(), request.name(), request.goal(), request.items()));
+    }
+
+    /** 整体替换存档内容（存档编辑，可同时改名） */
+    @PutMapping("/{id}/items")
+    public Result<PlanArchive> replaceItems(@PathVariable Long id,
+                                            @Valid @RequestBody ArchiveItemsRequest request) {
+        return Result.ok(archiveService.replaceItems(
+                UserContext.getUserId(), id, request.name(), request.goal(), request.items()));
     }
 
     /** 重命名存档 */

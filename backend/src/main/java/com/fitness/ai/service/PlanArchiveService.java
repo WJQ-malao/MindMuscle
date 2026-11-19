@@ -1,6 +1,7 @@
 package com.fitness.ai.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fitness.ai.dto.ArchiveItemsRequest;
 import com.fitness.ai.entity.PlanArchive;
 import com.fitness.ai.entity.PlanArchiveItem;
 import com.fitness.ai.entity.WorkoutItem;
@@ -83,6 +84,56 @@ public class PlanArchiveService {
         archive.setName(name);
         archiveMapper.updateById(archive);
         return archive;
+    }
+
+    /** 从动作清单直接创建存档（选择器里"存为存档"） */
+    @Transactional
+    public PlanArchive createFromItems(Long userId, String name, String goal,
+                                       List<ArchiveItemsRequest.Item> items) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("存档名称不能为空");
+        }
+        PlanArchive archive = new PlanArchive();
+        archive.setUserId(userId);
+        archive.setName(name.trim());
+        archive.setGoal(goal);
+        archiveMapper.insert(archive);
+        insertItems(archive.getId(), items);
+        return archive;
+    }
+
+    /** 整体替换存档内容（存档编辑），可同时改名 */
+    @Transactional
+    public PlanArchive replaceItems(Long userId, Long archiveId, String name, String goal,
+                                    List<ArchiveItemsRequest.Item> items) {
+        PlanArchive archive = requireOwned(userId, archiveId);
+        if (name != null && !name.isBlank()) {
+            archive.setName(name.trim());
+        }
+        if (goal != null) {
+            archive.setGoal(goal);
+        }
+        archiveMapper.updateById(archive);
+        archiveItemMapper.delete(new LambdaQueryWrapper<PlanArchiveItem>()
+                .eq(PlanArchiveItem::getArchiveId, archiveId));
+        insertItems(archiveId, items);
+        return archive;
+    }
+
+    private void insertItems(Long archiveId, List<ArchiveItemsRequest.Item> items) {
+        int sort = 0;
+        for (ArchiveItemsRequest.Item src : items) {
+            PlanArchiveItem it = new PlanArchiveItem();
+            it.setArchiveId(archiveId);
+            it.setDayOfWeek(src.dayOfWeek());
+            it.setExerciseName(src.exerciseName());
+            it.setMuscleGroup(src.muscleGroup());
+            it.setSets(src.sets());
+            it.setReps(src.reps());
+            it.setWeightKg(src.weightKg());
+            it.setSort(sort++);
+            archiveItemMapper.insert(it);
+        }
     }
 
     /** 删除存档（连带明细） */
