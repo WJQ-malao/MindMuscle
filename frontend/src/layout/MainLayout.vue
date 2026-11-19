@@ -47,9 +47,12 @@ const route = useRoute()
 const router = useRouter()
 const nickname = ref(localStorage.getItem('nickname') || '用户')
 const role = ref(localStorage.getItem('role') || 'USER')
-const pageTitle = computed(() =>
-  role.value === 'ADMIN' && route.path === '/dashboard' ? '平台概览' : (route.meta.title as string),
-)
+const pageTitle = computed(() => {
+  if (role.value === 'ADMIN' && route.path === '/dashboard') return '平台概览'
+  // 「我的」页标题展示当前用户名字
+  if (route.path === '/metrics') return `你好，${nickname.value}`
+  return route.meta.title as string
+})
 
 function onCommand(cmd: string) {
   if (cmd === 'logout') {
@@ -61,7 +64,9 @@ function onCommand(cmd: string) {
 
 <style scoped>
 .layout { height: 100vh; }
-.aside { background: #1f2d3d; }
+.aside { background: #1f2d3d; overflow: hidden; }
+/* el-menu 默认右边框在深色侧边栏上会露出一道浅色边，去掉 */
+.aside :deep(.el-menu) { border-right: none; }
 .logo {
   height: 60px; line-height: 60px; text-align: center;
   color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.5px;

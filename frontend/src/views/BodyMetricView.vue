@@ -38,6 +38,8 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <PlanArchivePanel style="margin-top: 14px" />
   </div>
 </template>
 
@@ -45,6 +47,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { metricApi, type BodyMetric } from '../api'
+import PlanArchivePanel from './PlanArchivePanel.vue'
 
 const rows = ref<BodyMetric[]>([])
 const loading = ref(false)

@@ -53,6 +53,9 @@
         <div class="basket-title">
           {{ mode === 'new-plan' ? `已选 ${basket.length} 个` : `${dayNames[props.dayOfWeek ?? 1]} 已安排（${basket.length}）` }}
         </div>
+        <el-button size="small" plain style="align-self: flex-start" @click="openArchivePicker">
+          📁 使用存档
+        </el-button>
         <div class="basket-list">
           <div v-for="(b, i) in sortedBasket" :key="b.itemId ?? 'new-' + i" class="basket-item">
             <div class="basket-head">
@@ -88,7 +91,25 @@
       </aside>
     </div>
 
-    <!-- 点+后的组次填写弹窗 -->
+    <!-- 使用存档：载入已保存的模板内容 -->
+  <el-dialog v-model="archiveVisible" title="使用存档" width="360px" append-to-body>
+    <div v-loading="archiveLoading" class="archive-options">
+      <el-radio-group v-if="archives.length" v-model="archiveSelected" class="archive-radio-group">
+        <el-radio v-for="a in archives" :key="a.id" :value="a.id" class="archive-radio">
+          <span class="archive-radio-name">{{ a.name }}</span>
+          <span class="archive-radio-sub">{{ a.goal || '未设目标' }}</span>
+        </el-radio>
+      </el-radio-group>
+      <el-empty v-if="!archiveLoading && !archives.length" :image-size="60"
+                description="还没有存档，可先在训练计划页把计划存为模板" />
+    </div>
+    <template #footer>
+      <el-button @click="archiveVisible = false">取消</el-button>
+      <el-button type="primary" :disabled="!archiveSelected" @click="applySelectedArchive">载入</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 点+后的组次填写弹窗 -->
     <el-dialog v-model="configVisible" :title="`添加「${configEx?.name}」`" width="360px" append-to-body>
       <el-form label-width="90px">
         <el-form-item label="组数">
@@ -118,7 +139,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { exerciseApi, workoutApi, type Exercise } from '../api'
+import { archiveApi, exerciseApi, workoutApi, type Exercise, type PlanArchive, type PlanArchiveItem } from '../api'
 
 export interface BasketItem {
   /** 已有动作对应 workout_item 主键；新增动作为空 */
@@ -277,6 +298,55 @@ function removeFromBasket(b: BasketItem) {
   basket.value = basket.value.filter((x) => x !== b)
 }
 
+// ---- 使用存档：载入已保存的模板内容 ----
+
+const archiveVisible = ref(false)
+const archiveLoading = ref(false)
+const archives = ref<PlanArchive[]>([])
+const archiveSelected = ref<number>()
+
+async function openArchivePicker() {
+  archiveVisible.value = true
+  archiveSelected.value = undefined
+  archiveLoading.value = true
+  try {
+    const res: any = await archiveApi.list()
+    archives.value = res.data ?? []
+  } finally {
+    archiveLoading.value = false
+  }
+}
+
+const toBasketItem = (it: PlanArchiveItem): BasketItem => ({
+  name: it.exerciseName,
+  muscleGroup: it.muscleGroup,
+  sets: it.sets,
+  reps: it.reps,
+  weightKg: it.weightKg ?? null,
+  dayOfWeek: it.dayOfWeek,
+  isNew: true,
+})
+
+/** 应用存档：编辑当天→载入存档中"这一天"的动作；新建计划→载入整周并保留原训练日 */
+async function applySelectedArchive() {
+  const res: any = await archiveApi.items(archiveSelected.value!)
+  const items: PlanArchiveItem[] = res.data ?? []
+  if (props.mode === 'edit-day') {
+    const dayItems = items.filter((it) => it.dayOfWeek === props.dayOfWeek)
+    if (!dayItems.length) {
+      ElMessage.warning('该存档在这一天没有安排动作')
+      return
+    }
+    basket.value = dayItems.map(toBasketItem)
+  } else {
+    basket.value = [...items]
+      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.id - b.id)
+      .map(toBasketItem)
+  }
+  archiveVisible.value = false
+  ElMessage.success('已载入存档内容，确认后保存')
+}
+
 function finish() {
   if (props.mode === 'new-plan') {
     emit('finish', [...basket.value])
@@ -338,6 +408,11 @@ function finish() {
   color: #888; font-size: 12px; cursor: pointer; line-height: 1.6;
 }
 .manual-add { display: flex; gap: 10px; align-items: center; }
+.archive-options { min-height: 80px; }
+.archive-radio-group { display: flex; flex-direction: column; gap: 4px; }
+.archive-radio { margin-right: 0; height: auto; padding: 6px 0; }
+.archive-radio-name { font-weight: 600; margin-right: 8px; }
+.archive-radio-sub { color: #999; font-size: 12px; }
 
 /* 右侧已选面板 */
 .basket-panel {

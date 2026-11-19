@@ -14,6 +14,8 @@ export interface WorkoutPlan {
   goal: string
   status: string
   source: string
+  /** 计划所属周的周一日期（YYYY-MM-DD），一天一计划 */
+  weekStart?: string
   createTime: string
 }
 
@@ -50,6 +52,11 @@ export const adminApi = {
   users: () => request.get('/admin/users'),
   updateRoles: (userId: number, roles: string[]) =>
     request.put(`/admin/users/${userId}/roles`, { roles }),
+  /** 用户资料详情（基本信息+统计+最近体测） */
+  userProfile: (userId: number) => request.get(`/admin/users/${userId}`),
+  resetPassword: (userId: number, newPassword: string) =>
+    request.put(`/admin/users/${userId}/reset-password`, { newPassword }),
+  deleteUser: (userId: number) => request.delete(`/admin/users/${userId}`),
 }
 
 export const metricApi = {
@@ -69,6 +76,26 @@ export interface ItemPayload {
 
 /** 创建计划时的动作项（训练日由后端按每周天数自动分摊） */
 export interface PlanItemPayload {
+  exerciseName: string
+  muscleGroup: string
+  sets: number
+  reps: number
+  weightKg?: number | null
+  /** 指定训练日（1-7），空=轮流分配；从存档复用时带上原训练日 */
+  dayOfWeek?: number
+}
+
+export interface PlanArchive {
+  id: number
+  name: string
+  goal: string
+  createTime: string
+}
+
+export interface PlanArchiveItem {
+  id: number
+  archiveId: number
+  dayOfWeek: number
   exerciseName: string
   muscleGroup: string
   sets: number
@@ -97,6 +124,17 @@ export const workoutApi = {
   /** 撤销某动作某一组的打卡，可传 date 撤销历史记录 */
   undoSetCheckin: (itemId: number, setNo: number, date?: string) =>
     request.delete(`/checkins/today/${itemId}/${setNo}`, { params: date ? { date } : {} }),
+}
+
+/** 计划存档（模板）：保存/管理/复用训练计划 */
+export const archiveApi = {
+  list: () => request.get('/plan-archives'),
+  items: (archiveId: number) => request.get(`/plan-archives/${archiveId}/items`),
+  /** 把训练计划快照保存为存档 */
+  create: (data: { planId: number; name: string }) => request.post('/plan-archives', data),
+  rename: (archiveId: number, name: string) =>
+    request.put(`/plan-archives/${archiveId}`, { name }),
+  remove: (archiveId: number) => request.delete(`/plan-archives/${archiveId}`),
 }
 
 export interface Exercise {

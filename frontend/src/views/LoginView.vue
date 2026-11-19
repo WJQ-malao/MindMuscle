@@ -149,6 +149,7 @@ async function doRegister() {
 function saveSession(data: any) {
   localStorage.setItem('token', data.token)
   localStorage.setItem('nickname', data.nickname)
+  localStorage.setItem('username', data.username)
   localStorage.setItem('role', data.role)
   localStorage.setItem('roles', JSON.stringify(data.roles ?? []))
 }

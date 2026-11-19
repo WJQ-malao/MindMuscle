@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h3 class="m-title">你好，{{ nickname }} 💪</h3>
-
     <div class="stat-grid">
       <div class="stat-card">
         <div class="num">{{ latest.weightKg ?? '-' }}</div>
@@ -57,7 +55,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import * as echarts from 'echarts'
 import { dashboardApi, workoutApi, type WorkoutItem, type WorkoutPlan } from '../../api'
 
-const nickname = ref(localStorage.getItem('nickname') || '用户')
 const latest = ref<any>({})
 const totalDays = ref(0)
 const recent7Days = ref(0)

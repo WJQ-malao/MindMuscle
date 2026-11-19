@@ -4,7 +4,7 @@
       <div class="toolbar">
         <el-select v-model="currentPlanId" placeholder="选择训练计划" style="width: 320px" @change="loadItems">
           <el-option v-for="p in plans" :key="p.id" :value="p.id"
-                     :label="`${p.title}（${p.source === 'AI' ? 'AI生成' : '手动创建'} · ${p.status === 'ACTIVE' ? '进行中' : '已归档'}）`" />
+                     :label="`${weekRange(p)}${p.title}（${p.source === 'AI' ? 'AI生成' : '手动创建'} · ${p.status === 'ACTIVE' ? '进行中' : '已归档'}）`" />
         </el-select>
         <span v-if="currentPlan" class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
           {{ currentPlan.goal }}
@@ -12,6 +12,7 @@
         <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
                         style="width: 150px" placeholder="选择日期" @change="onViewDateChange" />
         <div class="toolbar-right">
+          <el-button v-if="currentPlan" plain @click="openArchiveDialog">存为模板</el-button>
           <!-- 按天维度: 当天有内容→编辑; 当天为空→添加动作(往现有计划补这一天); 无计划→创建计划容器 -->
           <el-button v-if="!plans.length" type="primary" @click="openNewPlanPicker">创建计划</el-button>
           <el-button v-else-if="currentDayItems.length" type="primary" plain @click="openDayPicker">编辑计划</el-button>
@@ -91,6 +92,19 @@
       </template>
     </el-dialog>
 
+    <!-- 存为模板：把当前计划快照保存为存档 -->
+    <el-dialog v-model="archiveVisible" title="存为计划模板" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="存档名称">
+          <el-input v-model="archiveName" placeholder="如：增肌三分化模板" maxlength="100" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="archiveVisible = false">取消</el-button>
+        <el-button type="primary" :loading="archiveSaving" @click="saveArchive">保存存档</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 打卡（某一组） -->
     <el-dialog v-model="checkinVisible" title="组打卡" width="420px">
       <el-form label-width="90px">
@@ -115,7 +129,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../api'
+import { workoutApi, archiveApi, type WorkoutItem, type WorkoutPlan } from '../api'
 import ExercisePicker, { type ApplyDiff, type BasketItem } from './ExercisePicker.vue'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -147,6 +161,15 @@ const isTabToday = (idx: number) => fmtISO(weekDates.value[idx]) === todayISO
 function onViewDateChange() {
   day.value = String(viewDate.value.getDay() || 7)
   loadChecked()
+}
+
+/** 计划的周区间文本，如 11/16-11/22（无周信息的历史计划返回空串） */
+function weekRange(p: WorkoutPlan) {
+  if (!p.weekStart) return ''
+  const mon = new Date(`${p.weekStart}T00:00:00`)
+  const sun = new Date(mon)
+  sun.setDate(mon.getDate() + 6)
+  return `${fmtMD(mon)}-${fmtMD(sun)} · `
 }
 
 function chipTitle(row: WorkoutItem, setNo: number) {
@@ -297,6 +320,7 @@ async function savePlan() {
       items: basket.value.map((b) => ({
         exerciseName: b.name, muscleGroup: b.muscleGroup,
         sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
+        dayOfWeek: b.dayOfWeek,
       })),
     })
     ElMessage.success('计划已创建，动作已分配到各训练日，可进入编辑模式微调')
@@ -306,6 +330,33 @@ async function savePlan() {
     await loadItems()
   } finally {
     planSaving.value = false
+  }
+}
+
+// ---- 存为模板（计划存档） ----
+
+const archiveVisible = ref(false)
+const archiveName = ref('')
+const archiveSaving = ref(false)
+
+function openArchiveDialog() {
+  if (!currentPlan.value) return
+  archiveName.value = currentPlan.value.title.replace(/（.*?）/g, '').trim() || currentPlan.value.title
+  archiveVisible.value = true
+}
+
+async function saveArchive() {
+  if (!archiveName.value.trim()) {
+    ElMessage.warning('请填写存档名称')
+    return
+  }
+  archiveSaving.value = true
+  try {
+    await archiveApi.create({ planId: currentPlanId.value!, name: archiveName.value.trim() })
+    ElMessage.success('已保存为模板，可在「我的 → 计划存档」管理，或在编辑训练时一键复用')
+    archiveVisible.value = false
+  } finally {
+    archiveSaving.value = false
   }
 }
 

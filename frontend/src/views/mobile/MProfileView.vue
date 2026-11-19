@@ -1,6 +1,14 @@
 <template>
   <div>
-    <h3 class="m-title">👤 我的</h3>
+    <el-card shadow="never" class="user-card">
+      <div class="user-info">
+        <div class="avatar">{{ nickname.slice(0, 1) }}</div>
+        <div>
+          <div class="name">{{ nickname }}</div>
+          <div class="sub">账号 {{ username }}</div>
+        </div>
+      </div>
+    </el-card>
 
     <el-card shadow="never" class="m-card">
       <template #header>
@@ -41,6 +49,8 @@
       </template>
     </el-dialog>
 
+    <PlanArchivePanel style="margin-top: 12px" />
+
     <el-button size="large" round style="width: 100%; margin-top: 16px" @click="logout">
       退出登录
     </el-button>
@@ -52,8 +62,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { metricApi, type BodyMetric } from '../../api'
+import PlanArchivePanel from '../PlanArchivePanel.vue'
 
 const router = useRouter()
+const nickname = ref(localStorage.getItem('nickname') || '用户')
+// 老会话可能没存 username，退回用昵称展示
+const username = ref(localStorage.getItem('username') || nickname.value)
 const rows = ref<BodyMetric[]>([])
 const dialogVisible = ref(false)
 const saving = ref(false)
@@ -92,7 +106,14 @@ onMounted(load)
 </script>
 
 <style scoped>
-.m-title { margin: 4px 4px 14px; }
+.user-card { border-radius: 12px; margin-bottom: 12px; }
+.user-info { display: flex; align-items: center; gap: 14px; }
+.avatar {
+  width: 52px; height: 52px; border-radius: 50%; background: #409eff; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600;
+}
+.name { font-size: 18px; font-weight: 700; }
+.sub { color: #999; font-size: 13px; margin-top: 3px; }
 .m-card { border-radius: 12px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .record-list { display: flex; flex-direction: column; gap: 8px; }

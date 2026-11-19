@@ -7,14 +7,18 @@
                         size="small" style="width: 130px" placeholder="选择日期" @change="onViewDateChange" />
         <!-- 有计划：头部按钮直接打开动作选择器编辑当天（与 PC 端一致，无编辑模式） -->
         <el-button v-if="!activePlan" size="small" @click="openNewPlanPicker">创建计划</el-button>
-        <el-button v-else size="small" plain type="primary" @click="openDayPicker">
-          {{ currentDayHasItems ? '编辑计划' : '添加动作' }}
-        </el-button>
+        <template v-else>
+          <el-button size="small" plain @click="openArchiveDialog">存为模板</el-button>
+          <el-button size="small" plain type="primary" @click="openDayPicker">
+            {{ currentDayHasItems ? '编辑计划' : '添加动作' }}
+          </el-button>
+        </template>
       </div>
     </div>
 
     <el-card v-if="activePlan" shadow="never" class="m-card">
       <div class="plan-title">{{ activePlan.title }}</div>
+      <div v-if="activePlan.weekStart" class="plan-week">📅 本周 {{ weekRangeText(activePlan.weekStart) }}</div>
       <el-tabs v-model="day" @tab-change="onTabChange">
         <el-tab-pane v-for="(d, idx) in days" :key="d.value" :name="String(d.value)">
           <template #label>
@@ -75,6 +79,15 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="archiveVisible" title="存为计划模板" width="90%" style="max-width: 400px">
+      <el-input v-model="archiveName" placeholder="如：增肌三分化模板" maxlength="100" />
+      <template #footer>
+        <el-button size="large" style="width: 100%" type="primary" :loading="archiveSaving" @click="saveArchive">
+          保存存档
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="checkinVisible" title="组打卡" width="90%" style="max-width: 400px">
       <div class="checkin-form">
         <div class="checkin-exercise">{{ currentItem?.exerciseName }} · 第 {{ form.setNo }} 组</div>
@@ -99,7 +112,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { workoutApi, type WorkoutItem, type WorkoutPlan } from '../../api'
+import { workoutApi, archiveApi, type WorkoutItem, type WorkoutPlan } from '../../api'
 import ExercisePicker, { type ApplyDiff, type BasketItem } from '../ExercisePicker.vue'
 
 const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -153,6 +166,14 @@ const currentItem = ref<WorkoutItem>()
 const form = reactive({ setNo: 1, repsDone: 10, weightUsed: 0 })
 
 const itemsByDay = (d: number) => items.value.filter((i) => i.dayOfWeek === d)
+
+/** 计划周区间文本，如 11/16-11/22 */
+function weekRangeText(ws: string) {
+  const mon = new Date(`${ws}T00:00:00`)
+  const sun = new Date(mon)
+  sun.setDate(mon.getDate() + 6)
+  return `${fmtMD(mon)}-${fmtMD(sun)}`
+}
 /** 当前查看那天是否有训练动作（决定头部按钮显示 编辑计划 还是 添加动作） */
 const currentDayHasItems = computed(() => itemsByDay(Number(day.value)).length > 0)
 
@@ -230,6 +251,7 @@ async function savePlan() {
       items: basket.value.map((b) => ({
         exerciseName: b.name, muscleGroup: b.muscleGroup,
         sets: b.sets, reps: b.reps, weightKg: b.weightKg ?? null,
+        dayOfWeek: b.dayOfWeek,
       })),
     })
     ElMessage.success('计划已创建，动作已分配到各训练日，点「编辑」可微调')
@@ -240,6 +262,33 @@ async function savePlan() {
     items.value = it.data
   } finally {
     planSaving.value = false
+  }
+}
+
+// ---- 存为模板（计划存档，与 PC 端一致） ----
+
+const archiveVisible = ref(false)
+const archiveName = ref('')
+const archiveSaving = ref(false)
+
+function openArchiveDialog() {
+  if (!activePlan.value) return
+  archiveName.value = activePlan.value.title.replace(/（.*?）/g, '').trim() || activePlan.value.title
+  archiveVisible.value = true
+}
+
+async function saveArchive() {
+  if (!archiveName.value.trim()) {
+    ElMessage.warning('请填写存档名称')
+    return
+  }
+  archiveSaving.value = true
+  try {
+    await archiveApi.create({ planId: activePlan.value!.id, name: archiveName.value.trim() })
+    ElMessage.success('已保存为模板，可在「我的 → 计划存档」管理')
+    archiveVisible.value = false
+  } finally {
+    archiveSaving.value = false
   }
 }
 
@@ -306,7 +355,8 @@ onMounted(async () => {
 .m-title { margin: 0; }
 .m-actions { display: flex; gap: 8px; }
 .m-card { border-radius: 12px; }
-.plan-title { font-weight: 700; margin-bottom: 8px; }
+.plan-title { font-weight: 700; margin-bottom: 4px; }
+.plan-week { color: #909399; font-size: 12px; margin-bottom: 8px; }
 .item-list { display: flex; flex-direction: column; gap: 10px; }
 .train-item { display: flex; justify-content: space-between; align-items: center;
   padding: 12px; background: #f7f8fa; border-radius: 10px; gap: 8px; flex-wrap: wrap; }
