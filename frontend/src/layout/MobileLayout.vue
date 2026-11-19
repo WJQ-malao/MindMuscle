@@ -46,16 +46,18 @@ const tabs = computed(() => (role === 'ADMIN' ? adminTabs : userTabs))
 }
 .page-content {
   flex: 1;
-  padding: 12px 12px 70px;
+  padding: 12px 12px 16px;
   overflow-y: auto;
 }
+/* 底部导航：sticky 而非 fixed。微信/Android WebView 对 fixed+transform 有合成层bug，
+   滚动后底栏会悬空；sticky 在文档流内贴底，配合 mobile-layout 的 min-height:100vh 表现稳定 */
 .tab-bar {
-  position: fixed;
+  position: sticky;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  z-index: 100;
   width: 100%;
   max-width: 520px;
+  margin: 0 auto;
   display: flex;
   background: #fff;
   border-top: 1px solid #eee;
