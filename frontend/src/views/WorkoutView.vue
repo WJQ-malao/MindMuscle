@@ -1,20 +1,21 @@
 <template>
   <div>
     <el-card shadow="hover">
+      <!-- 一天一计划：只展示当前周计划，不再提供历史计划切换（避免误选旧计划） -->
       <div class="toolbar">
-        <el-select v-model="currentPlanId" placeholder="选择训练计划" style="width: 320px" @change="loadItems">
-          <el-option v-for="p in plans" :key="p.id" :value="p.id"
-                     :label="`${weekRange(p)}${p.title}（${p.source === 'AI' ? 'AI生成' : '手动创建'} · ${p.status === 'ACTIVE' ? '进行中' : '已归档'}）`" />
-        </el-select>
-        <span v-if="currentPlan" class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
-          {{ currentPlan.goal }}
-        </span>
         <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
                         style="width: 150px" placeholder="选择日期" @change="onViewDateChange" />
+        <div v-if="currentPlan" class="plan-head">
+          <span class="plan-name">{{ currentPlan.title }}</span>
+          <span v-if="currentPlan.weekStart" class="plan-week">📅 本周 {{ weekRangeText(currentPlan.weekStart) }}</span>
+          <span class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
+            {{ currentPlan.goal }}
+          </span>
+        </div>
         <div class="toolbar-right">
           <el-button v-if="currentPlan" plain @click="openArchiveDialog">存为模板</el-button>
           <!-- 按天维度: 当天有内容→编辑; 当天为空→添加动作(往现有计划补这一天); 无计划→创建计划容器 -->
-          <el-button v-if="!plans.length" type="primary" @click="openNewPlanPicker">创建计划</el-button>
+          <el-button v-if="!currentPlan" type="primary" @click="openNewPlanPicker">创建计划</el-button>
           <el-button v-else-if="currentDayItems.length" type="primary" plain @click="openDayPicker">编辑计划</el-button>
           <el-button v-else type="primary" @click="openDayPicker">添加动作</el-button>
         </div>
@@ -163,13 +164,12 @@ function onViewDateChange() {
   loadChecked()
 }
 
-/** 计划的周区间文本，如 11/16-11/22（无周信息的历史计划返回空串） */
-function weekRange(p: WorkoutPlan) {
-  if (!p.weekStart) return ''
-  const mon = new Date(`${p.weekStart}T00:00:00`)
+/** 计划的周区间文本，如 11/16-11/22 */
+function weekRangeText(ws: string) {
+  const mon = new Date(`${ws}T00:00:00`)
   const sun = new Date(mon)
   sun.setDate(mon.getDate() + 6)
-  return `${fmtMD(mon)}-${fmtMD(sun)} · `
+  return `${fmtMD(mon)}-${fmtMD(sun)}`
 }
 
 function chipTitle(row: WorkoutItem, setNo: number) {
@@ -204,9 +204,11 @@ async function load() {
   try {
     const res: any = await workoutApi.plans()
     plans.value = res.data
-    const active = res.data.find((p: WorkoutPlan) => p.status === 'ACTIVE') ?? res.data[0]
+    // 一天一计划：只认 ACTIVE 计划；无则视为"还没有计划"
+    const active = res.data.find((p: WorkoutPlan) => p.status === 'ACTIVE')
     currentPlanId.value = active?.id
     if (active) await loadItems()
+    else items.value = []
   } finally {
     loading.value = false
   }
@@ -313,7 +315,7 @@ async function savePlan() {
   }
   planSaving.value = true
   try {
-    const res: any = await workoutApi.createPlan({
+    await workoutApi.createPlan({
       title: newPlanForm.title,
       goal: newPlanForm.goal,
       daysPerWeek: newPlanForm.daysPerWeek,
@@ -326,8 +328,6 @@ async function savePlan() {
     ElMessage.success('计划已创建，动作已分配到各训练日，可进入编辑模式微调')
     newPlanVisible.value = false
     await load()
-    currentPlanId.value = res.data.id
-    await loadItems()
   } finally {
     planSaving.value = false
   }
@@ -400,6 +400,9 @@ onMounted(load)
 <style scoped>
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .toolbar > * { flex-shrink: 0; }
+.plan-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.plan-name { font-weight: 700; font-size: 15px; }
+.plan-week { color: #909399; font-size: 13px; }
 .toolbar-right { display: flex; gap: 10px; }
 .goal-chip {
   padding: 7px 14px; border-radius: 8px; background: #ecf5ff; color: #409eff;
