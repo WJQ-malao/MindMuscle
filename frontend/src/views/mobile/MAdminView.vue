@@ -10,6 +10,14 @@
         </div>
         <span class="arrow">›</span>
       </div>
+      <div class="admin-card" @click="$router.push('/m/admin/exercises')">
+        <span class="icon">🏋️</span>
+        <div class="info">
+          <div class="name">动作库管理</div>
+          <div class="desc">增删改标准动作，维护训练动作数据</div>
+        </div>
+        <span class="arrow">›</span>
+      </div>
       <div class="admin-card" @click="$router.push('/m/admin/users')">
         <span class="icon">👥</span>
         <div class="info">

@@ -109,6 +109,9 @@ export interface Exercise {
 
 export const exerciseApi = {
   list: (): Promise<any> => request.get('/exercises'),
+  create: (data: Omit<Exercise, 'id' | 'imageUrl'>) => request.post('/exercises', data),
+  update: (id: number, data: Omit<Exercise, 'id' | 'imageUrl'>) => request.put(`/exercises/${id}`, data),
+  remove: (id: number) => request.delete(`/exercises/${id}`),
 }
 
 export const knowledgeApi = {

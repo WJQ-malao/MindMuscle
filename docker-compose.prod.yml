@@ -37,6 +37,7 @@ services:
       - ./发版/2026-11-18/20261118000004_workout_item_weight.sql:/docker-entrypoint-initdb.d/06_item_weight.sql:ro
       - ./发版/2026-11-18/20261118000005_checkin_per_set.sql:/docker-entrypoint-initdb.d/07_checkin_setno.sql:ro
       - ./发版/2026-11-18/20261118000006_exercise_image_url.sql:/docker-entrypoint-initdb.d/08_exercise_image_url.sql:ro
+      - ./发版/2026-11-19/20261119000001_exercise_manage_perm.sql:/docker-entrypoint-initdb.d/09_exercise_perm.sql:ro
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]

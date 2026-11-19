@@ -8,6 +8,7 @@
         <template v-if="role === 'ADMIN'">
           <el-menu-item index="/dashboard"><el-icon><DataLine /></el-icon>平台概览</el-menu-item>
           <el-menu-item index="/admin/users"><el-icon><User /></el-icon>用户管理</el-menu-item>
+          <el-menu-item index="/admin/exercises"><el-icon><Aim /></el-icon>动作库管理</el-menu-item>
           <el-menu-item index="/knowledge"><el-icon><FolderOpened /></el-icon>知识库管理</el-menu-item>
         </template>
         <!-- ===== 普通用户：个人健身菜单 ===== -->

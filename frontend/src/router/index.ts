@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'workout', component: () => import('../views/WorkoutView.vue'), meta: { title: '训练计划' } },
         { path: 'knowledge', component: () => import('../views/KnowledgeView.vue'), meta: { title: '知识库管理', admin: true } },
         { path: 'admin/users', component: () => import('../views/AdminUsersView.vue'), meta: { title: '用户管理', admin: true } },
+        { path: 'admin/exercises', component: () => import('../views/AdminExercisesView.vue'), meta: { title: '动作库管理', admin: true } },
       ],
     },
     {
@@ -37,6 +38,7 @@ const router = createRouter({
         { path: 'admin', component: () => import('../views/mobile/MAdminView.vue'), meta: { title: '平台管理', admin: true } },
         { path: 'admin/knowledge', component: () => import('../views/KnowledgeView.vue'), meta: { title: '知识库管理', admin: true } },
         { path: 'admin/users', component: () => import('../views/AdminUsersView.vue'), meta: { title: '用户管理', admin: true } },
+        { path: 'admin/exercises', component: () => import('../views/AdminExercisesView.vue'), meta: { title: '动作库管理', admin: true } },
       ],
     },
   ],
