@@ -7,10 +7,19 @@
         <el-icon size="40" color="#409eff"><UploadFilled /></el-icon>
         <div>拖拽文件到此处，或点击选择（PDF / TXT / DOCX / MD，≤20MB）</div>
       </el-upload>
-      <el-button type="primary" style="margin-top: 12px" :disabled="!file" :loading="uploading"
-                 @click="upload">
-        {{ uploading ? '解析入库中…' : '开始入库' }}
-      </el-button>
+      <div class="upload-actions">
+        <el-button type="primary" style="margin-top: 12px" :disabled="!file" :loading="uploading"
+                   @click="upload">
+          {{ uploading ? '解析入库中…' : '开始入库' }}
+        </el-button>
+        <!-- AI 教练总开关：关闭后所有用户发消息只收到提示，不调用大模型 -->
+        <div class="ai-coach-switch">
+          <span class="ai-coach-label">🤖 AI 教练</span>
+          <el-switch v-model="aiCoachEnabled" :loading="aiCoachLoading" inline-prompt
+                     active-text="开启" inactive-text="关闭" @change="toggleAiCoach" />
+          <span class="ai-coach-hint">{{ aiCoachEnabled ? '使用中，用户可正常对话' : '已关闭，用户发消息将收到"暂时关闭，请联系管理员"提示' }}</span>
+        </div>
+      </div>
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
@@ -43,7 +52,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { knowledgeApi, type KnowledgeFile } from '../api'
+import { knowledgeApi, adminApi, type KnowledgeFile } from '../api'
 
 const file = ref<File | null>(null)
 const files = ref<KnowledgeFile[]>([])
@@ -52,6 +61,27 @@ const uploading = ref(false)
 const previewVisible = ref(false)
 const previewLoading = ref(false)
 const previewData = ref<any>(null)
+const aiCoachEnabled = ref(true)
+const aiCoachLoading = ref(false)
+
+async function loadAiCoach() {
+  try {
+    const res: any = await adminApi.aiCoachStatus()
+    aiCoachEnabled.value = !!res.data?.enabled
+  } catch { /* 拦截器已提示 */ }
+}
+
+async function toggleAiCoach(enabled: boolean) {
+  aiCoachLoading.value = true
+  try {
+    const res: any = await adminApi.setAiCoach(enabled)
+    ElMessage.success(res.data || (enabled ? 'AI 教练已开启' : 'AI 教练已关闭'))
+  } catch {
+    aiCoachEnabled.value = !enabled
+  } finally {
+    aiCoachLoading.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -106,10 +136,17 @@ async function download(row: KnowledgeFile) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadAiCoach()
+})
 </script>
 
 <style scoped>
+.upload-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ai-coach-switch { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.ai-coach-label { font-size: 14px; font-weight: 600; }
+.ai-coach-hint { color: #909399; font-size: 12px; }
 .preview-text {
   max-height: 55vh;
   overflow: auto;

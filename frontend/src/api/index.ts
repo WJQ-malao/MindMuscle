@@ -57,6 +57,9 @@ export const adminApi = {
   resetPassword: (userId: number, newPassword: string) =>
     request.put(`/admin/users/${userId}/reset-password`, { newPassword }),
   deleteUser: (userId: number) => request.delete(`/admin/users/${userId}`),
+  /** AI 教练开关：管理员在知识库管理页控制，关闭后用户发消息只收到提示 */
+  aiCoachStatus: () => request.get('/admin/config/ai-coach'),
+  setAiCoach: (enabled: boolean) => request.put('/admin/config/ai-coach', { enabled }),
 }
 
 export const metricApi = {

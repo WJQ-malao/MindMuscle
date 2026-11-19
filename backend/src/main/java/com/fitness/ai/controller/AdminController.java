@@ -16,6 +16,7 @@ import com.fitness.ai.mapper.UserRoleMapper;
 import com.fitness.ai.mapper.WorkoutItemMapper;
 import com.fitness.ai.mapper.WorkoutPlanMapper;
 import com.fitness.ai.security.RequireRole;
+import com.fitness.ai.service.SysConfigService;
 import com.fitness.ai.util.UserContext;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,13 +49,15 @@ public class AdminController {
     private final KnowledgeFileMapper knowledgeFileMapper;
     private final UserRoleMapper userRoleMapper;
     private final SysRoleMapper roleMapper;
+    private final SysConfigService sysConfigService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AdminController(UserMapper userMapper, CheckinMapper checkinMapper,
                            WorkoutPlanMapper planMapper, WorkoutItemMapper itemMapper,
                            BodyMetricMapper metricMapper, PlanArchiveMapper archiveMapper,
                            PlanArchiveItemMapper archiveItemMapper, KnowledgeFileMapper knowledgeFileMapper,
-                           UserRoleMapper userRoleMapper, SysRoleMapper roleMapper) {
+                           UserRoleMapper userRoleMapper, SysRoleMapper roleMapper,
+                           SysConfigService sysConfigService) {
         this.userMapper = userMapper;
         this.checkinMapper = checkinMapper;
         this.planMapper = planMapper;
@@ -65,6 +68,21 @@ public class AdminController {
         this.knowledgeFileMapper = knowledgeFileMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
+        this.sysConfigService = sysConfigService;
+    }
+
+    /** AI 教练开关状态（管理员在知识库管理页查看/操作） */
+    @GetMapping("/config/ai-coach")
+    public Result<Map<String, Boolean>> aiCoachStatus() {
+        return Result.ok(Map.of("enabled", sysConfigService.isAiCoachEnabled()));
+    }
+
+    /** 开启/关闭 AI 教练：关闭后普通用户发消息只会收到提示，不调用大模型 */
+    @PutMapping("/config/ai-coach")
+    public Result<String> setAiCoach(@RequestBody Map<String, Boolean> body) {
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        sysConfigService.setAiCoachEnabled(enabled);
+        return Result.ok(enabled ? "AI 教练已开启" : "AI 教练已关闭");
     }
 
     /** 平台概览：核心指标 + 最近注册用户 */
