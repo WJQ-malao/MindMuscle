@@ -72,16 +72,17 @@ public class FitnessTools {
         return String.format("BMI = %.1f，属于「%s」范围（中国成人标准：18.5-24 正常）。", bmi, category);
     }
 
-    @Tool(description = "为用户生成一周训练计划并写入系统。参数：goal 为训练目标（如 增肌 / 减脂），" +
-            "daysPerWeek 为每周训练天数（1-7）。生成后应告知用户计划已保存到训练计划列表。")
+    @Tool(description = "为用户生成本周（周一至周日）的训练计划并写入系统，训练日会均匀分布在这一周内。" +
+            "参数：goal 为训练目标（如 增肌 / 减脂），daysPerWeek 为本周训练天数（1-7）。" +
+            "计划按周生效，下周需要重新生成新一周的计划。生成后应告知用户计划已保存到训练计划列表。")
     public String createWorkoutPlan(@ToolParam(description = "训练目标，如：增肌、减脂") String goal,
-                                    @ToolParam(description = "每周训练天数，1-7 的整数") int daysPerWeek) {
+                                    @ToolParam(description = "本周训练天数，1-7 的整数") int daysPerWeek) {
         WorkoutPlan plan = workoutService.generatePlan(UserContext.getUserId(), goal, daysPerWeek);
-        return "训练计划已生成并保存：" + plan.getTitle() +
-                "（计划ID: " + plan.getId() + "），用户可在训练计划页查看每天的具体动作安排。";
+        return "本周训练计划已生成并保存：" + plan.getTitle() +
+                "（计划ID: " + plan.getId() + "），用户可在训练计划页查看每天的具体动作安排；下周记得让我重新生成新计划。";
     }
 
-    @Tool(description = "查询用户当前进行中的训练计划及每天的动作安排。" +
+    @Tool(description = "查询用户本周进行中的训练计划及每天的动作安排。" +
             "当用户问「今天练什么」「我的计划是什么」或需要基于现有计划给建议时调用。")
     public String getMyActivePlan() {
         return workoutService.summarizeActivePlan(UserContext.getUserId());

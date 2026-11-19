@@ -32,9 +32,38 @@ public class WorkoutService {
     }
 
     public List<WorkoutPlan> listPlans(Long userId) {
+        archiveExpiredPlans(userId);
         return planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
                 .eq(WorkoutPlan::getUserId, userId)
                 .orderByDesc(WorkoutPlan::getId));
+    }
+
+    /** 一天一计划：所属周已结束的 ACTIVE 计划自动归档（weekStart 为空的历史数据不动） */
+    private void archiveExpiredPlans(Long userId) {
+        LocalDate today = LocalDate.now();
+        List<WorkoutPlan> expired = planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
+                .eq(WorkoutPlan::getUserId, userId)
+                .eq(WorkoutPlan::getStatus, "ACTIVE")
+                .isNotNull(WorkoutPlan::getWeekStart)
+                .lt(WorkoutPlan::getWeekStart, today.minusDays(6)));
+        for (WorkoutPlan plan : expired) {
+            plan.setStatus("ARCHIVED");
+            planMapper.updateById(plan);
+        }
+    }
+
+    /** 当前周的周一日期 */
+    public static LocalDate currentWeekMonday() {
+        return LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+    }
+
+    /** 周区间展示文本，如 11/17-11/23 */
+    public static String weekRangeText(LocalDate weekStart) {
+        if (weekStart == null) {
+            return "";
+        }
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("MM/dd");
+        return weekStart.format(fmt) + "-" + weekStart.plusDays(6).format(fmt);
     }
 
     public List<WorkoutItem> listItems(Long planId) {
@@ -46,6 +75,7 @@ public class WorkoutService {
 
     /** 规则模板生成训练计划：具体动作编排由确定性规则完成，
      * 大模型只负责对话和触发，不参与数值与编排决策（护栏设计）。
+     * 一天一计划：计划绑定当前周（周一至周日），训练日按经典分化均匀分布在一周内。
      * 新计划创建时自动归档旧的进行中计划，保证同时只有一个 ACTIVE。
      */
     @Transactional
@@ -53,6 +83,7 @@ public class WorkoutService {
         if (daysPerWeek < 1 || daysPerWeek > 7) {
             throw new IllegalArgumentException("每周训练天数必须在 1-7 之间");
         }
+        archiveExpiredPlans(userId);
         List<WorkoutPlan> activePlans = planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
                 .eq(WorkoutPlan::getUserId, userId)
                 .eq(WorkoutPlan::getStatus, "ACTIVE"));
@@ -61,15 +92,17 @@ public class WorkoutService {
             planMapper.updateById(old);
         }
 
+        LocalDate weekStart = currentWeekMonday();
         WorkoutPlan plan = new WorkoutPlan();
         plan.setUserId(userId);
         plan.setGoal(goal);
         plan.setStatus("ACTIVE");
         plan.setSource("AI");
-        plan.setTitle(goal + "训练计划（每周" + daysPerWeek + "练）");
+        plan.setWeekStart(weekStart);
+        plan.setTitle(goal + "·本周训练（" + weekRangeText(weekStart) + "）");
         planMapper.insert(plan);
 
-        List<WorkoutItem> items = buildTemplate(goal, daysPerWeek);
+        List<WorkoutItem> items = buildTemplate(goal, trainingDays(daysPerWeek));
         for (WorkoutItem item : items) {
             item.setPlanId(plan.getId());
             itemMapper.insert(item);
@@ -77,23 +110,31 @@ public class WorkoutService {
         return plan;
     }
 
-    /** 经典分化模板：根据每周天数选择训练分化方式 */
-    private List<WorkoutItem> buildTemplate(String goal, int daysPerWeek) {
-        // 训练日分配（从周一开始取连续天数）
-        List<Integer> days = new ArrayList<>();
-        for (int i = 1; i <= daysPerWeek; i++) {
-            days.add(i);
-        }
+    /** 经典训练日分布：N 练均匀地落在一周内（留出恢复日） */
+    private int[] trainingDays(int daysPerWeek) {
+        return switch (daysPerWeek) {
+            case 1 -> new int[]{4};
+            case 2 -> new int[]{2, 5};
+            case 3 -> new int[]{1, 3, 5};
+            case 4 -> new int[]{1, 2, 4, 6};
+            case 5 -> new int[]{1, 2, 3, 5, 6};
+            case 6 -> new int[]{1, 2, 3, 4, 5, 6};
+            default -> new int[]{1, 2, 3, 4, 5, 6, 7};
+        };
+    }
+
+    /** 经典分化模板：根据本周训练日列表轮换肌群 */
+    private List<WorkoutItem> buildTemplate(String goal, int[] trainingDays) {
         List<WorkoutItem> items = new ArrayList<>();
         int sort = 0;
-        for (int i = 0; i < days.size(); i++) {
-            String[] session = pickSession(goal, daysPerWeek, i);
+        for (int i = 0; i < trainingDays.length; i++) {
+            String[] session = pickSession(goal, trainingDays.length, i);
             int finalI = i;
             int finalSort = sort;
             items.addAll(List.of(
-                    item(days.get(finalI), session[0], session[1], 4, 10, finalSort),
-                    item(days.get(finalI), session[0], session[2], 3, 12, finalSort + 1),
-                    item(days.get(finalI), "有氧", "慢跑/跳绳", 20, 1, finalSort + 2)
+                    item(trainingDays[finalI], session[0], session[1], 4, 10, finalSort),
+                    item(trainingDays[finalI], session[0], session[2], 3, 12, finalSort + 1),
+                    item(trainingDays[finalI], "有氧", "慢跑/跳绳", 20, 1, finalSort + 2)
             ));
             sort += 3;
         }
@@ -191,9 +232,10 @@ public class WorkoutService {
 
     // ============ 手动编辑（Keep 式） ============
 
-    /** 手动创建空计划（来源 MANUAL），旧的进行中计划自动归档 */
+    /** 手动创建空计划（来源 MANUAL），绑定当前周，旧的进行中计划自动归档 */
     @Transactional
     public WorkoutPlan createManualPlan(Long userId, String title, String goal) {
+        archiveExpiredPlans(userId);
         List<WorkoutPlan> activePlans = planMapper.selectList(new LambdaQueryWrapper<WorkoutPlan>()
                 .eq(WorkoutPlan::getUserId, userId)
                 .eq(WorkoutPlan::getStatus, "ACTIVE"));
@@ -207,6 +249,7 @@ public class WorkoutService {
         plan.setGoal(goal);
         plan.setStatus("ACTIVE");
         plan.setSource("MANUAL");
+        plan.setWeekStart(currentWeekMonday());
         planMapper.insert(plan);
         return plan;
     }
@@ -222,7 +265,8 @@ public class WorkoutService {
         int[] daySort = new int[8];
         for (int i = 0; i < items.size(); i++) {
             PlanCreateRequest.Item src = items.get(i);
-            int dayOfWeek = i % daysPerWeek + 1;
+            // 从存档复用时保留原训练日；手动创建则轮流分配
+            int dayOfWeek = src.dayOfWeek() != null ? src.dayOfWeek() : (i % daysPerWeek + 1);
             WorkoutItem it = new WorkoutItem();
             it.setPlanId(plan.getId());
             it.setExerciseName(src.exerciseName());
@@ -300,18 +344,20 @@ public class WorkoutService {
         return it;
     }
 
-    /** 供 AI 工具读取：用户当前计划 + 明细的文本摘要 */
+    /** 供 AI 工具读取：用户本周计划 + 明细的文本摘要 */
     public String summarizeActivePlan(Long userId) {
+        archiveExpiredPlans(userId);
         WorkoutPlan plan = planMapper.selectOne(new LambdaQueryWrapper<WorkoutPlan>()
                 .eq(WorkoutPlan::getUserId, userId)
                 .eq(WorkoutPlan::getStatus, "ACTIVE")
                 .orderByDesc(WorkoutPlan::getId)
                 .last("LIMIT 1"));
         if (plan == null) {
-            return "当前没有进行中的训练计划";
+            return "当前没有进行中的训练计划（计划按周生成，可让 AI 为本周生成一份）";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("计划：").append(plan.getTitle()).append("，目标：").append(plan.getGoal()).append("。\n");
+        sb.append("本周计划（").append(weekRangeText(plan.getWeekStart())).append("）：")
+                .append(plan.getTitle()).append("，目标：").append(plan.getGoal()).append("。\n");
         Map<Integer, List<WorkoutItem>> byDay = new LinkedHashMap<>();
         for (WorkoutItem it : listItems(plan.getId())) {
             byDay.computeIfAbsent(it.getDayOfWeek(), k -> new ArrayList<>()).add(it);

@@ -50,6 +50,10 @@ public class ChatClientConfig {
                                         .vectorStore(vectorStore)
                                         .topK(5)
                                         .build())
+                                // 知识库检索为空时保留用户原始提问（默认会把提问替换掉空上下文模板，导致模型看不到真问题、不触发工具）
+                                .queryAugmenter(org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter.builder()
+                                        .allowEmptyContext(true)
+                                        .build())
                                 .build(),
                         PromptChatMemoryAdvisor.builder(chatMemory).build()
                 )

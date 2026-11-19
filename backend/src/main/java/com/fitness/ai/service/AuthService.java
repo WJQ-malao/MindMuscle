@@ -55,6 +55,7 @@ public class AuthService {
         Map<String, Object> result = new HashMap<>();
         result.put("token", jwtUtil.generateToken(user.getId(), roles));
         result.put("userId", user.getId());
+        result.put("username", user.getUsername());
         result.put("nickname", user.getNickname());
         result.put("roles", roles);
         result.put("role", roles.contains("ADMIN") ? "ADMIN" : (roles.isEmpty() ? "USER" : roles.get(0)));

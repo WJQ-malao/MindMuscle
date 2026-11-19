@@ -49,7 +49,12 @@ public record PlanCreateRequest(
             /** 建议重量（kg），空=自重 */
             @Min(value = 0, message = "重量不能为负")
             @Max(value = 1000, message = "重量不能超过 1000kg")
-            Double weightKg
+            Double weightKg,
+
+            /** 指定训练日（1-7），空=按顺序轮流分配（从存档复用时会带上原训练日） */
+            @Min(value = 1, message = "训练日必须在 1-7 之间")
+            @Max(value = 7, message = "训练日必须在 1-7 之间")
+            Integer dayOfWeek
     ) {
     }
 }
