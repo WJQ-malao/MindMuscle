@@ -3,8 +3,6 @@
     <div class="m-header">
       <h3 class="m-title">🏋️ 训练计划</h3>
       <div class="m-actions">
-        <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
-                        size="small" style="width: 130px" placeholder="选择日期" @change="onViewDateChange" />
         <!-- 有计划：头部按钮直接打开动作选择器编辑当天（与 PC 端一致，无编辑模式） -->
         <el-button v-if="!activePlan" size="small" @click="openNewPlanPicker">创建计划</el-button>
         <template v-else>
@@ -118,14 +116,13 @@ const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六'
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const day = ref(String(new Date().getDay() || 7))
 
-/** 查看日期：默认今天；日期选择器切换后，页签显示该日期所在周的 周几+月/日 */
-const viewDate = ref(new Date())
+/** 页签永远锚定本周（周一起），看历史打卡点对应页签（只读） */
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const fmtMD = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
 const todayISO = fmtISO(new Date())
 const weekDates = computed(() => {
-  const base = new Date(viewDate.value)
+  const base = new Date()
   const mon = new Date(base)
   mon.setDate(base.getDate() - ((base.getDay() + 6) % 7))
   return Array.from({ length: 7 }, (_, i) => {
@@ -138,11 +135,6 @@ const currentTabDate = computed(() => weekDates.value[Number(day.value) - 1])
 /** 是否正在查看今天（只有今天可以打卡/撤销） */
 const isViewingToday = computed(() => fmtISO(currentTabDate.value) === todayISO)
 const isTabToday = (idx: number) => fmtISO(weekDates.value[idx]) === todayISO
-
-function onViewDateChange() {
-  day.value = String(viewDate.value.getDay() || 7)
-  loadChecked()
-}
 
 /** 切换训练日：刷新该日期的打卡状态 */
 function onTabChange() {

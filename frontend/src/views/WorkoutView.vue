@@ -3,8 +3,6 @@
     <el-card shadow="hover">
       <!-- 一天一计划：只展示当前周计划，不再提供历史计划切换（避免误选旧计划） -->
       <div class="toolbar">
-        <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
-                        style="width: 150px" placeholder="选择日期" @change="onViewDateChange" />
         <div v-if="currentPlan?.weekStart" class="plan-head">
           <span class="plan-week">📅 本周 {{ weekRangeText(currentPlan.weekStart) }}</span>
         </div>
@@ -133,15 +131,13 @@ const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六'
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const day = ref(String(new Date().getDay() || 7))
 
-/** 查看日期：默认今天；日期选择器切换后，页签显示该日期所在周的 周几+月/日 */
-const viewDate = ref(new Date())
+/** 页签永远锚定本周（周一起的 7 个日期），看历史打卡点对应页签（只读） */
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const fmtMD = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
 const todayISO = fmtISO(new Date())
-/** 查看日期所在周（周一起）的 7 个日期 */
 const weekDates = computed(() => {
-  const base = new Date(viewDate.value)
+  const base = new Date()
   const mon = new Date(base)
   mon.setDate(base.getDate() - ((base.getDay() + 6) % 7))
   return Array.from({ length: 7 }, (_, i) => {
@@ -154,11 +150,6 @@ const currentTabDate = computed(() => weekDates.value[Number(day.value) - 1])
 /** 是否正在查看今天（只有今天可以打卡/撤销） */
 const isViewingToday = computed(() => fmtISO(currentTabDate.value) === todayISO)
 const isTabToday = (idx: number) => fmtISO(weekDates.value[idx]) === todayISO
-
-function onViewDateChange() {
-  day.value = String(viewDate.value.getDay() || 7)
-  loadChecked()
-}
 
 /** 计划的周区间文本，如 11/16-11/22 */
 function weekRangeText(ws: string) {
