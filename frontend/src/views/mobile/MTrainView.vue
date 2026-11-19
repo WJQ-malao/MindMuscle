@@ -17,8 +17,7 @@
     </div>
 
     <el-card v-if="activePlan" shadow="never" class="m-card">
-      <div class="plan-title">{{ activePlan.title }}</div>
-      <div v-if="activePlan.weekStart" class="plan-week">📅 本周 {{ weekRangeText(activePlan.weekStart) }}</div>
+      <div v-if="activePlan?.weekStart" class="plan-week">📅 本周 {{ weekRangeText(activePlan.weekStart) }}</div>
       <el-tabs v-model="day" @tab-change="onTabChange">
         <el-tab-pane v-for="(d, idx) in days" :key="d.value" :name="String(d.value)">
           <template #label>
@@ -355,7 +354,6 @@ onMounted(async () => {
 .m-title { margin: 0; }
 .m-actions { display: flex; gap: 8px; }
 .m-card { border-radius: 12px; }
-.plan-title { font-weight: 700; margin-bottom: 4px; }
 .plan-week { color: #909399; font-size: 12px; margin-bottom: 8px; }
 .item-list { display: flex; flex-direction: column; gap: 10px; }
 .train-item { display: flex; justify-content: space-between; align-items: center;

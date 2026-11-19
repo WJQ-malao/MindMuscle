@@ -5,12 +5,8 @@
       <div class="toolbar">
         <el-date-picker v-model="viewDate" type="date" :clearable="false" :editable="false"
                         style="width: 150px" placeholder="选择日期" @change="onViewDateChange" />
-        <div v-if="currentPlan" class="plan-head">
-          <span class="plan-name">{{ currentPlan.title }}</span>
-          <span v-if="currentPlan.weekStart" class="plan-week">📅 本周 {{ weekRangeText(currentPlan.weekStart) }}</span>
-          <span class="goal-chip" :class="{ archived: currentPlan.status !== 'ACTIVE' }">
-            {{ currentPlan.goal }}
-          </span>
+        <div v-if="currentPlan?.weekStart" class="plan-head">
+          <span class="plan-week">📅 本周 {{ weekRangeText(currentPlan.weekStart) }}</span>
         </div>
         <div class="toolbar-right">
           <el-button v-if="currentPlan" plain @click="openArchiveDialog">存为模板</el-button>
@@ -401,14 +397,8 @@ onMounted(load)
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .toolbar > * { flex-shrink: 0; }
 .plan-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
-.plan-name { font-weight: 700; font-size: 15px; }
 .plan-week { color: #909399; font-size: 13px; }
 .toolbar-right { display: flex; gap: 10px; }
-.goal-chip {
-  padding: 7px 14px; border-radius: 8px; background: #ecf5ff; color: #409eff;
-  font-size: 14px; line-height: 1;
-}
-.goal-chip.archived { background: #f4f4f5; color: #909399; }
 .tab-label { display: inline-flex; align-items: center; gap: 5px; }
 .tab-label.today { color: #409eff; font-weight: 600; }
 .day-badge {
