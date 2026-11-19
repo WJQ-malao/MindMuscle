@@ -41,6 +41,9 @@ mybatis-plus:
       id-type: auto
 
 app:
+  # 动作插图上传存储目录（上传后通过 /api/exercise-images/** 访问）
+  exercise-images:
+    dir: ${EXERCISE_IMAGE_DIR:./exercise-images}
   # Embedding 走硅基流动（DeepSeek 官方无 Embedding 模型），由 EmbeddingConfig 手动构建
   siliconflow:
     api-key: ${SILICONFLOW_API_KEY:}

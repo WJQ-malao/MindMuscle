@@ -79,6 +79,8 @@ services:
     volumes:
       # 知识库原始文件持久化（容器重建后不丢）
       - knowledge_data:/app/knowledge-files
+      # 动作插图持久化
+      - exercise_images:/app/exercise-images
     depends_on:
       mysql:
         condition: service_healthy
@@ -101,3 +103,4 @@ volumes:
   mysql_data:
   qdrant_data:
   knowledge_data:
+  exercise_images:

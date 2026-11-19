@@ -24,3 +24,6 @@ backend/data/
 
 # 知识库原始文件
 backend/knowledge-files/
+
+# 动作插图上传文件
+backend/exercise-images/

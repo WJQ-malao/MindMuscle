@@ -13,7 +13,7 @@ public class ExerciseLib {
     private Long id;
     private String name;
     private String muscleGroup;
-    /** 器械分类：杠铃/哑铃/器械/自重/有氧 */
+    /** 器械分类：杠铃/哑铃/器械/自重，可空（有氧动作不填） */
     private String equipment;
     /** 动作要点（文本讲解） */
     private String tips;

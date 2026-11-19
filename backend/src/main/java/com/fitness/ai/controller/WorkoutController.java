@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -83,16 +85,23 @@ public class WorkoutController {
         return Result.ok(workoutService.recentCheckins(UserContext.getUserId(), 10));
     }
 
-    /** 今天已打卡的"动作ID→已打组号列表"（按组打卡状态展示） */
+    /** 已打卡的"动作ID→已打组号列表"，默认今天，可传 date=YYYY-MM-DD 查看历史日期 */
     @GetMapping("/checkins/today")
-    public Result<Map<Long, List<Integer>>> todayChecked() {
-        return Result.ok(workoutService.todayCheckedSets(UserContext.getUserId()));
+    public Result<Map<Long, List<Integer>>> todayChecked(
+            @RequestParam(required = false) String date) {
+        return Result.ok(workoutService.checkedSets(UserContext.getUserId(), parseDate(date)));
     }
 
-    /** 撤销今天某动作某一组的打卡 */
+    /** 撤销某动作某一组的打卡，默认撤销今天的，可传 date 撤销历史记录 */
     @DeleteMapping("/checkins/today/{itemId}/{setNo}")
-    public Result<String> undoSet(@PathVariable Long itemId, @PathVariable Integer setNo) {
-        workoutService.undoSetCheckin(UserContext.getUserId(), itemId, setNo);
+    public Result<String> undoSet(@PathVariable Long itemId, @PathVariable Integer setNo,
+                                  @RequestParam(required = false) String date) {
+        workoutService.undoSetCheckin(UserContext.getUserId(), itemId, setNo, parseDate(date));
         return Result.ok("已撤销该组打卡");
+    }
+
+    /** date 参数解析：缺省为今天 */
+    private LocalDate parseDate(String date) {
+        return date == null || date.isBlank() ? LocalDate.now() : LocalDate.parse(date);
     }
 }

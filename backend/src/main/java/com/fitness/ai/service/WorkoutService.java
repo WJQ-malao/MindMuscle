@@ -171,21 +171,21 @@ public class WorkoutService {
                 .last("LIMIT " + limit));
     }
 
-    /** 今天已打卡的"动作→已打组号列表"映射（按组打卡状态展示） */
-    public Map<Long, List<Integer>> todayCheckedSets(Long userId) {
+    /** 指定日期已打卡的"动作→已打组号列表"映射（按组打卡状态展示） */
+    public Map<Long, List<Integer>> checkedSets(Long userId, LocalDate date) {
         return checkinMapper.selectList(new LambdaQueryWrapper<Checkin>()
                         .eq(Checkin::getUserId, userId)
-                        .eq(Checkin::getCheckinDate, LocalDate.now())).stream()
+                        .eq(Checkin::getCheckinDate, date)).stream()
                 .collect(Collectors.groupingBy(Checkin::getItemId,
                         Collectors.mapping(Checkin::getSetNo, Collectors.toList())));
     }
 
     /** 撤销某一组的打卡 */
-    public void undoSetCheckin(Long userId, Long itemId, int setNo) {
+    public void undoSetCheckin(Long userId, Long itemId, int setNo, LocalDate date) {
         checkinMapper.delete(new LambdaQueryWrapper<Checkin>()
                 .eq(Checkin::getUserId, userId)
                 .eq(Checkin::getItemId, itemId)
-                .eq(Checkin::getCheckinDate, LocalDate.now())
+                .eq(Checkin::getCheckinDate, date)
                 .eq(Checkin::getSetNo, setNo));
     }
 

@@ -29,7 +29,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<String> handleNotReadable(HttpMessageNotReadableException e) {
-        return Result.fail("请求体格式错误");
+        log.error("请求体解析失败", e);
+        return Result.fail("请求体格式错误：" + e.getMostSpecificCause().getMessage());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

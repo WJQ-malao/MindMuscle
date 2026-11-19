@@ -18,13 +18,17 @@ public record ExerciseUpsertRequest(
         @NotBlank(message = "肌群不能为空")
         String muscleGroup,
 
-        /** 器械分类：杠铃/哑铃/器械/自重/有氧，可空 */
+        /** 器械分类：杠铃/哑铃/器械/自重；无氧必填，有氧不填 */
         @Size(max = 20, message = "器械分类过长")
         String equipment,
 
         /** 动作要点 */
         @Size(max = 2000, message = "动作要点过长")
         String tips,
+
+        /** 插图地址（上传接口返回，可空） */
+        @Size(max = 500, message = "插图地址过长")
+        String imageUrl,
 
         /** 组内排序 */
         @Min(value = 0, message = "排序不能为负")
