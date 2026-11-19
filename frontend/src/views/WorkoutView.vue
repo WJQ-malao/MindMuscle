@@ -1,10 +1,13 @@
 <template>
   <div>
     <el-card shadow="hover">
-      <!-- 一天一计划：只展示当前周计划，不再提供历史计划切换（避免误选旧计划） -->
+      <!-- 一天一计划：计划始终为当前 ACTIVE 计划；上方日期选择器可切换查看任意一周，停留于选中的那天（历史周打卡只读） -->
       <div class="toolbar">
         <div v-if="currentPlan?.weekStart" class="plan-head">
-          <span class="plan-week">📅 本周 {{ weekRangeText(currentPlan.weekStart) }}</span>
+          <el-date-picker v-model="pickedDate" type="date" value-format="YYYY-MM-DD" :clearable="false"
+                          :editable="false" placeholder="选择日期" style="width: 150px"
+                          @change="onDatePicked" />
+          <span class="plan-week">{{ isCurrentWeek ? '本周 ' : '' }}{{ currentWeekRange }}</span>
         </div>
         <div class="toolbar-right">
           <el-button v-if="currentPlan" plain @click="openArchiveDialog">存为模板</el-button>
@@ -131,21 +134,31 @@ const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六'
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const day = ref(String(new Date().getDay() || 7))
 
-/** 页签永远锚定本周（周一起的 7 个日期），看历史打卡点对应页签（只读） */
+/** 选中日期（决定展示哪一周，默认今天）；计划始终是当前 ACTIVE 计划，切周只是查看该周的打卡记录（历史周只读） */
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const fmtMD = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
 const todayISO = fmtISO(new Date())
+const pickedDate = ref(todayISO)
+
+function mondayOf(d: Date) {
+  const mon = new Date(d)
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return mon
+}
+
+/** 页签锚定选中日期所在周的 7 个日期（周一起），看历史打卡点对应页签（只读） */
 const weekDates = computed(() => {
-  const base = new Date()
-  const mon = new Date(base)
-  mon.setDate(base.getDate() - ((base.getDay() + 6) % 7))
+  const mon = mondayOf(new Date(`${pickedDate.value}T00:00:00`))
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon)
     d.setDate(mon.getDate() + i)
     return d
   })
 })
+/** 展示周的区间文本及"本周"前缀 */
+const currentWeekRange = computed(() => weekRangeText(fmtISO(weekDates.value[0])))
+const isCurrentWeek = computed(() => fmtISO(weekDates.value[0]) === fmtISO(mondayOf(new Date())))
 const currentTabDate = computed(() => weekDates.value[Number(day.value) - 1])
 /** 是否正在查看今天（只有今天可以打卡/撤销） */
 const isViewingToday = computed(() => fmtISO(currentTabDate.value) === todayISO)
@@ -225,6 +238,14 @@ function doneCount(itemId: number) {
 async function loadChecked() {
   const res: any = await workoutApi.todayChecked(fmtISO(currentTabDate.value))
   checkedToday.value = res.data ?? {}
+}
+
+/** 选择日期：展示该日期所在的一周，并停留在选中的那一天 */
+function onDatePicked(val: string) {
+  if (!val) return
+  const d = new Date(`${val}T00:00:00`)
+  day.value = String(d.getDay() || 7)
+  loadChecked()
 }
 
 /** 组格子点击：已完成→确认撤销；未完成→打卡弹窗 */

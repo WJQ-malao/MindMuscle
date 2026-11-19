@@ -1,4 +1,6 @@
 <template>
+  <div class="welcome-banner">Welcome to MindMuscle</div>
+
   <!-- ===== 管理员：平台运营视角 ===== -->
   <div v-if="isAdmin">
     <el-row :gutter="16">
@@ -186,6 +188,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.welcome-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff; font-size: 18px; font-weight: 700;
+  padding: 16px 20px; border-radius: 12px; margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
 .stat .label { color: #999; font-size: 13px; }
 .stat .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
 .stat .unit { font-size: 13px; color: #999; font-weight: 400; }

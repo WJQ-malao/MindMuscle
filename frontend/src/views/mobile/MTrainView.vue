@@ -15,7 +15,12 @@
     </div>
 
     <el-card v-if="activePlan" shadow="never" class="m-card">
-      <div v-if="activePlan?.weekStart" class="plan-week">📅 本周 {{ weekRangeText(activePlan.weekStart) }}</div>
+      <div v-if="activePlan?.weekStart" class="plan-week m-week-row">
+        <el-date-picker v-model="pickedDate" type="date" value-format="YYYY-MM-DD" :clearable="false"
+                        :editable="false" placeholder="选择日期" size="small" style="width: 150px"
+                        @change="onDatePicked" />
+        <span>{{ isCurrentWeek ? '本周 ' : '' }}{{ currentWeekRange }}</span>
+      </div>
       <el-tabs v-model="day" @tab-change="onTabChange">
         <el-tab-pane v-for="(d, idx) in days" :key="d.value" :name="String(d.value)">
           <template #label>
@@ -116,21 +121,31 @@ const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六'
 const days = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v, label: dayNames[v] }))
 const day = ref(String(new Date().getDay() || 7))
 
-/** 页签永远锚定本周（周一起），看历史打卡点对应页签（只读） */
+/** 选中日期（决定展示哪一周，默认今天）；计划始终是当前 ACTIVE 计划，切周只是查看该周的打卡记录（历史周只读） */
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const fmtMD = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
 const todayISO = fmtISO(new Date())
+const pickedDate = ref(todayISO)
+
+function mondayOf(d: Date) {
+  const mon = new Date(d)
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return mon
+}
+
+/** 页签锚定选中日期所在周的 7 个日期（周一起），看历史打卡点对应页签（只读） */
 const weekDates = computed(() => {
-  const base = new Date()
-  const mon = new Date(base)
-  mon.setDate(base.getDate() - ((base.getDay() + 6) % 7))
+  const mon = mondayOf(new Date(`${pickedDate.value}T00:00:00`))
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon)
     d.setDate(mon.getDate() + i)
     return d
   })
 })
+/** 展示周的区间文本及"本周"前缀 */
+const currentWeekRange = computed(() => weekRangeText(fmtISO(weekDates.value[0])))
+const isCurrentWeek = computed(() => fmtISO(weekDates.value[0]) === fmtISO(mondayOf(new Date())))
 const currentTabDate = computed(() => weekDates.value[Number(day.value) - 1])
 /** 是否正在查看今天（只有今天可以打卡/撤销） */
 const isViewingToday = computed(() => fmtISO(currentTabDate.value) === todayISO)
@@ -138,6 +153,14 @@ const isTabToday = (idx: number) => fmtISO(weekDates.value[idx]) === todayISO
 
 /** 切换训练日：刷新该日期的打卡状态 */
 function onTabChange() {
+  loadChecked()
+}
+
+/** 选择日期：展示该日期所在的一周，并停留在选中的那一天 */
+function onDatePicked(val: string) {
+  if (!val) return
+  const d = new Date(`${val}T00:00:00`)
+  day.value = String(d.getDay() || 7)
   loadChecked()
 }
 
@@ -347,6 +370,7 @@ onMounted(async () => {
 .m-actions { display: flex; gap: 8px; }
 .m-card { border-radius: 12px; }
 .plan-week { color: #909399; font-size: 12px; margin-bottom: 8px; }
+.m-week-row { display: flex; align-items: center; gap: 8px; }
 .item-list { display: flex; flex-direction: column; gap: 10px; }
 .train-item { display: flex; justify-content: space-between; align-items: center;
   padding: 12px; background: #f7f8fa; border-radius: 10px; gap: 8px; flex-wrap: wrap; }

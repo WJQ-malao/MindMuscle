@@ -1,5 +1,7 @@
 <template>
   <div>
+    <div class="welcome-banner">Welcome to MindMuscle</div>
+
     <div class="stat-grid">
       <div class="stat-card">
         <div class="num">{{ latest.weightKg ?? '-' }}</div>
@@ -98,6 +100,12 @@ onBeforeUnmount(() => chart?.dispose())
 </script>
 
 <style scoped>
+.welcome-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff; font-size: 17px; font-weight: 700;
+  padding: 14px 18px; border-radius: 12px; margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
 .m-title { margin: 4px 4px 14px; }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat-card { background: #fff; border-radius: 12px; padding: 14px; text-align: center; }

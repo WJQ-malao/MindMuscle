@@ -357,19 +357,15 @@ const toBasketItem = (it: PlanArchiveItem): BasketItem => ({
   isNew: true,
 })
 
-/** 应用存档：编辑当天→载入存档中"这一天"的动作；新建计划→载入整周并保留原训练日 */
+/** 应用存档：编辑当天→把存档全部动作归入当天（忽略原训练日，同名去重）；新建计划→载入整周并保留原训练日 */
 async function applySelectedArchive() {
   const res: any = await archiveApi.items(archiveSelected.value!)
   const items: PlanArchiveItem[] = res.data ?? []
   if (props.mode === 'edit-day') {
-    const dayItems = items.filter((it) => it.dayOfWeek === props.dayOfWeek)
-    if (!dayItems.length) {
-      const covered = [...new Set(items.map((it) => it.dayOfWeek))].sort()
-      const coveredText = covered.map((d) => dayNames[d]).join('、') || '没有任何'
-      ElMessage.warning(`该存档只安排了${coveredText}，没有${dayNames[props.dayOfWeek ?? 1]}的动作`)
-      return
-    }
-    basket.value = dayItems.map(toBasketItem)
+    const seen = new Set<string>()
+    basket.value = items
+      .filter((it) => !seen.has(it.exerciseName) && (seen.add(it.exerciseName), true))
+      .map((it) => ({ ...toBasketItem(it), dayOfWeek: props.dayOfWeek ?? 1 }))
   } else {
     basket.value = [...items]
       .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.id - b.id)
