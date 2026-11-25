@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 /** 简单判定移动端：屏幕宽度或 UA */
 function isMobile(): boolean {
@@ -44,8 +45,32 @@ const router = createRouter({
   ],
 })
 
+/** 解析 JWT exp：过期即视为未登录（避免先进系统再被 401 踢回的闪跳） */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return !payload.exp || payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('nickname')
+  localStorage.removeItem('username')
+  localStorage.removeItem('role')
+  localStorage.removeItem('roles')
+  localStorage.removeItem('avatar')
+}
+
 router.beforeEach((to) => {
-  const token = localStorage.getItem('token')
+  let token = localStorage.getItem('token')
+  if (token && isTokenExpired(token)) {
+    clearSession()
+    token = null
+    if (to.path !== '/login') ElMessage.warning('登录已过期，请重新登录')
+  }
   if (!token && to.path !== '/login') return '/login'
   if (token && to.path === '/login') {
     // PC 端：管理员落到平台概览；移动端：管理员落到平台管理，普通用户落到首页
