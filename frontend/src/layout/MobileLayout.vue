@@ -43,6 +43,11 @@ const tabs = computed(() => (role === 'ADMIN' ? adminTabs : userTabs))
   background: #f5f6fa;
   display: flex;
   flex-direction: column;
+  animation: mmPageIn 0.5s ease both;
+}
+@keyframes mmPageIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .page-content {
   flex: 1;

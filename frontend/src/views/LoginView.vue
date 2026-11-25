@@ -1,29 +1,44 @@
 <template>
   <div class="login-page">
-    <!-- 左侧品牌面板（借鉴模板版式） -->
-    <aside class="brand-panel">
-      <div class="brand-logo">🏋️ MindMuscle</div>
-      <div class="brand-slogan">
-        <h1>智能健身，科学训练</h1>
-        <p>RAG 知识库 + AI 教练 + 数据看板，你的个性化健身伙伴</p>
+    <!-- 漂浮装饰 -->
+    <div class="shape s1" /><div class="shape s2" /><div class="shape s3" />
+    <div class="float-card fc1" /><div class="float-card fc2" />
+
+    <!-- 左侧品牌视觉 -->
+    <aside class="brand">
+      <div class="brand-head">
+        <div class="app-icon">🏋️</div>
+        <span class="brand-name">MindMuscle</span>
       </div>
-      <ul class="brand-features">
-        <li>🤖 AI 教练 —— 基于知识库的流式对话与自动计划生成</li>
-        <li>📊 数据看板 —— 体重趋势、肌群分布、打卡热力图</li>
-        <li>🏋️ 训练计划 —— 按周管理，逐组打卡</li>
-      </ul>
-      <div class="brand-circles"><i /><i /><i /></div>
+      <div class="brand-body">
+        <h1>智能健身<br />科学训练</h1>
+        <p>RAG 知识库 + AI 教练 + 数据看板<br />你的个性化健身伙伴</p>
+        <ul class="brand-points">
+          <li><b>AI 教练</b>基于知识库的流式对话，一句话生成训练计划</li>
+          <li><b>数据看板</b>体重趋势、肌群分布、打卡热力图一目了然</li>
+          <li><b>训练计划</b>按周管理，逐组打卡，容量自动统计</li>
+        </ul>
+      </div>
+      <div class="brand-foot">MindMuscle · 基于 SpringBoot 与 RAG 的个性化健身系统</div>
     </aside>
 
-    <!-- 右侧表单面板 -->
-    <main class="form-panel">
-      <el-card class="card" shadow="never">
-        <h2 class="card-title">{{ isRegister ? '创建账号' : '欢迎回来' }}</h2>
-        <p class="card-sub">{{ isRegister ? '两步完成注册，开始你的健身之旅' : '登录以继续使用 MindMuscle' }}</p>
+    <!-- 右侧登录卡片 -->
+    <main class="panel">
+      <div class="card">
+        <h2 class="card-title">欢迎来到 MindMuscle</h2>
+        <p class="card-sub">{{ isRegister ? '创建账号，开始你的健身之旅' : '登录以继续使用' }}</p>
+
+        <div class="tabs">
+          <button class="tab" :class="{ active: !isRegister }" @click="isRegister = false; step = 1">登录</button>
+          <button class="tab" :class="{ active: isRegister }" @click="isRegister = true; step = 1">注册</button>
+          <span class="tab-ink" :style="isRegister ? 'transform: translateX(100%)' : 'transform: translateX(0)'" />
+        </div>
+
         <el-steps v-if="isRegister" :active="step - 1" align-center finish-status="success" class="steps">
           <el-step title="账号信息" />
           <el-step title="身体数据" />
         </el-steps>
+
         <el-form :model="form" size="large" @keyup.enter="onSubmit">
           <template v-if="!isRegister || step === 1">
             <el-form-item>
@@ -52,19 +67,30 @@
               <el-input-number v-model="form.bodyFat" :min="1" :max="60" :precision="1" placeholder="体脂率 %（可选）" style="width: 100%" />
             </el-form-item>
           </template>
+
           <el-button v-if="isRegister && step === 2" style="width: 100%; margin-bottom: 10px" @click="step = 1">
             上一步
           </el-button>
-          <el-button class="submit-btn" type="primary" style="width: 100%" :loading="loading" @click="onSubmit">
+          <el-button class="submit" type="primary" style="width: 100%" :loading="loading" @click="onSubmit">
             {{ submitText }}
           </el-button>
-          <div class="switch" @click="toggleMode">
-            {{ isRegister ? '已有账号？去登录' : '没有账号？去注册' }}
-          </div>
         </el-form>
-      </el-card>
-      <div class="footer-tip">MindMuscle · 基于 SpringBoot 与 RAG 的个性化健身系统</div>
+      </div>
+      <div class="panel-foot">欢迎页过渡 · 登录成功后将进入系统</div>
     </main>
+
+    <!-- 登录成功欢迎过渡页（停留 ~2 秒后渐变进入系统） -->
+    <transition name="splash">
+      <div v-if="splash.show" class="splash" :class="{ leaving: splash.leaving }">
+        <div class="splash-inner">
+          <div class="splash-logo">🏋️</div>
+          <div class="splash-title">{{ splashText }}</div>
+          <div class="splash-name">{{ splash.nickname }}</div>
+          <div class="splash-bar"><i /></div>
+          <div class="splash-tip">正在进入系统…</div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -88,15 +114,14 @@ const form = reactive({
   bodyFat: undefined as number | undefined,
 })
 
+/** 欢迎过渡页状态 */
+const splash = reactive({ show: false, leaving: false, nickname: '' })
+const splashText = computed(() => (isRegister.value ? '注册成功' : '登录成功'))
+
 const submitText = computed(() => {
   if (!isRegister.value) return '登 录'
   return step.value === 1 ? '下一步' : '完成注册'
 })
-
-function toggleMode() {
-  isRegister.value = !isRegister.value
-  step.value = 1
-}
 
 async function onSubmit() {
   if (!isRegister.value) {
@@ -131,7 +156,7 @@ async function doLogin() {
   try {
     const res: any = await authApi.login({ username: form.username, password: form.password })
     saveSession(res.data)
-    router.push(isMobile() ? '/m/home' : '/')
+    enterSplash(res.data.nickname)
   } catch {
     // 错误提示已由拦截器统一弹出
   } finally {
@@ -158,12 +183,25 @@ async function doRegister() {
     } catch {
       // 体重记录失败不阻塞注册流程
     }
-    router.push(isMobile() ? '/m/home' : '/')
+    enterSplash(res.data.nickname)
   } catch {
     // 错误提示已由拦截器统一弹出
   } finally {
     loading.value = false
   }
+}
+
+/** 欢迎过渡页：停留约 1.6s → 渐变淡出 0.4s → 进入系统 */
+function enterSplash(nickname: string) {
+  splash.nickname = nickname || form.username
+  splash.show = true
+  splash.leaving = false
+  setTimeout(() => {
+    splash.leaving = true
+  }, 1600)
+  setTimeout(() => {
+    router.push(isMobile() ? '/m/home' : '/')
+  }, 2050)
 }
 
 function saveSession(data: any) {
@@ -181,76 +219,169 @@ function isMobile() {
 </script>
 
 <style scoped>
+/* ===== 页面基底：浅色高级感 + 漂浮几何 ===== */
 .login-page {
   min-height: 100vh;
   display: flex;
-  background: #f5f6fa;
-}
-
-/* ===== 左侧品牌面板 ===== */
-.brand-panel {
-  flex: 1.1;
   position: relative;
   overflow: hidden;
-  padding: 48px 56px;
-  display: flex;
-  flex-direction: column;
-  color: #fff;
-  background: linear-gradient(150deg, #4f7cff 0%, #6a5bf0 55%, #9456e8 100%);
+  background: #f4f6fb;
 }
-.brand-logo { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
-.brand-slogan { margin-top: 15vh; }
-.brand-slogan h1 { font-size: 30px; margin: 0 0 12px; letter-spacing: 1px; }
-.brand-slogan p { font-size: 14px; opacity: 0.85; margin: 0; }
-.brand-features { margin: 40px 0 0; padding: 0; list-style: none; }
-.brand-features li {
-  font-size: 14px; opacity: 0.92; margin-bottom: 14px;
-  padding-left: 2px;
+.shape {
+  position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.55; pointer-events: none;
 }
-.brand-circles i {
-  position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.08);
+.s1 { width: 420px; height: 420px; background: #cfdcff; top: -120px; left: -120px; animation: drift 14s ease-in-out infinite; }
+.s2 { width: 320px; height: 320px; background: #e4d6ff; bottom: -100px; left: 38%; animation: drift 11s ease-in-out infinite reverse; }
+.s3 { width: 260px; height: 260px; background: #d2f0ff; top: 10%; right: -80px; animation: drift 16s ease-in-out infinite; }
+.float-card {
+  position: absolute; border-radius: 22px; pointer-events: none;
+  background: linear-gradient(135deg, #4f7cff, #a55cf0); opacity: 0.10;
 }
-.brand-circles i:nth-child(1) { width: 260px; height: 260px; right: -60px; top: -60px; }
-.brand-circles i:nth-child(2) { width: 160px; height: 160px; right: 120px; bottom: 40px; }
-.brand-circles i:nth-child(3) { width: 90px; height: 90px; left: 40%; bottom: -30px; }
+.fc1 { width: 110px; height: 110px; left: 34%; top: 14%; transform: rotate(18deg); animation: bob 9s ease-in-out infinite; }
+.fc2 { width: 70px; height: 70px; left: 6%; bottom: 12%; transform: rotate(-12deg); animation: bob 12s ease-in-out infinite reverse; }
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -24px); }
+}
+@keyframes bob {
+  0%, 100% { transform: rotate(18deg) translateY(0); }
+  50% { transform: rotate(18deg) translateY(-16px); }
+}
 
-/* ===== 右侧表单面板 ===== */
-.form-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* ===== 左侧品牌视觉 ===== */
+.brand {
+  flex: 1.15;
+  position: relative; z-index: 1;
+  padding: 44px 40px 28px 56px;
+  display: flex; flex-direction: column;
+}
+.brand-head { display: flex; align-items: center; gap: 12px; }
+.app-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, #4f7cff, #9456e8);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; box-shadow: 0 8px 20px rgba(94, 108, 240, 0.35);
+}
+.brand-name { font-size: 20px; font-weight: 700; color: #1f2329; letter-spacing: 0.4px; }
+.brand-body { margin-top: 12vh; }
+.brand-body h1 {
+  font-size: 40px; line-height: 1.25; margin: 0 0 14px;
+  color: #1f2329; letter-spacing: 2px; font-weight: 800;
+}
+.brand-body p { font-size: 14px; color: #6b7280; line-height: 1.8; margin: 0 0 34px; }
+.brand-points { list-style: none; margin: 0; padding: 0; }
+.brand-points li {
+  font-size: 13px; color: #6b7280; margin-bottom: 14px;
+  padding: 10px 16px; background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 12px; backdrop-filter: blur(6px);
+  max-width: 380px;
+}
+.brand-points b { color: #1f2329; margin-right: 10px; }
+.brand-foot { margin-top: auto; font-size: 12px; color: #a0a6b3; }
+
+/* ===== 右侧卡片 ===== */
+.panel {
+  flex: 1; position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
   padding: 24px;
 }
 .card {
-  width: 400px;
-  max-width: 100%;
-  border: none;
-  border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(31, 45, 61, 0.10);
-  padding: 6px 10px;
+  width: 400px; max-width: 100%;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(31, 45, 61, 0.10);
+  padding: 34px 34px 28px;
 }
-.card-title { text-align: center; margin: 6px 0 4px; font-size: 22px; color: #1f2329; }
+.card-title { text-align: center; margin: 0 0 6px; font-size: 22px; color: #1f2329; }
 .card-sub { text-align: center; color: #8a8f99; font-size: 13px; margin: 0 0 22px; }
-.steps { margin-bottom: 22px; }
-.submit-btn {
-  height: 44px;
-  font-size: 16px;
-  letter-spacing: 4px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #4f7cff, #7a5af8);
-  border: none;
-}
-.submit-btn:hover { opacity: 0.92; }
-.switch { text-align: center; margin-top: 14px; color: #4f7cff; cursor: pointer; font-size: 13px; }
-.switch:hover { text-decoration: underline; }
-.footer-tip { margin-top: 22px; color: #b0b5bf; font-size: 12px; }
 
-/* 窄屏：隐藏左侧面板 */
+/* 分段选项卡 */
+.tabs {
+  position: relative; display: flex;
+  background: #f2f4f9; border-radius: 12px; padding: 4px;
+  margin-bottom: 22px;
+}
+.tab {
+  flex: 1; position: relative; z-index: 1;
+  border: none; background: transparent; cursor: pointer;
+  padding: 9px 0; font-size: 14px; color: #6b7280; border-radius: 9px;
+  transition: color 0.25s;
+}
+.tab.active { color: #1f2329; font-weight: 600; }
+.tab-ink {
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
+  background: #fff; border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);
+  transition: transform 0.28s ease;
+}
+.steps { margin-bottom: 20px; }
+
+/* 填充式输入框（高级感） */
+.card :deep(.el-input__wrapper) {
+  background: #f5f6fa;
+  box-shadow: none;
+  border-radius: 10px;
+  padding: 2px 14px;
+}
+.card :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px rgba(79, 124, 255, 0.18);
+  background: #fff;
+}
+.submit {
+  height: 44px; font-size: 15px; letter-spacing: 6px;
+  border: none; border-radius: 10px; margin-top: 4px;
+  background: linear-gradient(90deg, #4f7cff, #9456e8);
+  box-shadow: 0 8px 20px rgba(94, 108, 240, 0.32);
+  transition: transform 0.15s ease, opacity 0.2s;
+}
+.submit:hover { opacity: 0.93; transform: translateY(-1px); }
+.panel-foot { margin-top: 18px; font-size: 12px; color: #b0b5bf; }
+
+/* ===== 欢迎过渡页 ===== */
+.splash {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, #4f7cff 0%, #6a5bf0 55%, #9456e8 100%);
+  transition: opacity 0.4s ease;
+}
+.splash.leaving { opacity: 0; }
+.splash-inner { text-align: center; color: #fff; animation: pop 0.45s ease both; }
+.splash-logo {
+  width: 84px; height: 84px; margin: 0 auto 18px;
+  border-radius: 22px; background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 44px;
+  backdrop-filter: blur(4px);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.splash-title { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+.splash-name { font-size: 14px; opacity: 0.85; margin-top: 8px; }
+.splash-bar {
+  width: 200px; height: 4px; margin: 26px auto 12px;
+  background: rgba(255, 255, 255, 0.25); border-radius: 4px; overflow: hidden;
+}
+.splash-bar i {
+  display: block; height: 100%; width: 0;
+  background: #fff; border-radius: 4px;
+  animation: fill 1.55s linear forwards;
+}
+.splash-tip { font-size: 12px; opacity: 0.7; }
+@keyframes fill { to { width: 100%; } }
+@keyframes pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* 窄屏：隐藏左侧，保留浅色底与漂浮装饰 */
 @media (max-width: 900px) {
-  .brand-panel { display: none; }
-  .login-page { background: linear-gradient(150deg, #4f7cff, #9456e8); }
-  .card { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
+  .brand { display: none; }
+  .card { width: 92vw; }
+  .panel-foot { display: none; }
 }
 </style>

@@ -125,5 +125,9 @@ function onAvatarUpdated(url: string) {
   color: #fff; font-size: 14px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.main { background: #f5f6fa; padding: 20px; }
+.main { background: #f5f6fa; padding: 20px; animation: mmPageIn 0.5s ease both; }
+@keyframes mmPageIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
