@@ -1,5 +1,9 @@
 <template>
   <div>
+    <div class="mm-page-header">
+      <h2>身体数据</h2>
+      <div class="sub">记录体重与体脂，长期趋势尽在掌握</div>
+    </div>
     <el-card shadow="hover">
       <template #header>
         <div class="card-header">

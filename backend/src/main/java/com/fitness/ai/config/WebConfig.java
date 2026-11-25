@@ -14,6 +14,10 @@ public class WebConfig implements WebMvcConfigurer {
     @org.springframework.beans.factory.annotation.Value("${app.exercise-images.dir:./exercise-images}")
     private String imageDir;
 
+    /** 用户头像上传目录，见 app.avatars.dir */
+    @org.springframework.beans.factory.annotation.Value("${app.avatars.dir:./avatars}")
+    private String avatarDir;
+
     public WebConfig(JwtInterceptor jwtInterceptor) {
         this.jwtInterceptor = jwtInterceptor;
     }
@@ -23,8 +27,9 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/**")
-                // 动作插图：<img> 标签无法携带 token，需匿名访问
-                .excludePathPatterns("/api/exercise-images/**");
+                // 动作插图与用户头像：<img> 标签无法携带 token，需匿名访问
+                .excludePathPatterns("/api/exercise-images/**")
+                .excludePathPatterns("/api/avatars/**");
     }
 
     @Override
@@ -32,6 +37,8 @@ public class WebConfig implements WebMvcConfigurer {
         // 必须转 URI（file:///D:/...）：直接拼 "file:" + Windows 反斜杠路径不是合法 URL，会导致资源解析 404
         String location = java.nio.file.Path.of(imageDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/api/exercise-images/**").addResourceLocations(location);
+        String avatarLocation = java.nio.file.Path.of(avatarDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/api/avatars/**").addResourceLocations(avatarLocation);
     }
 
     @Override

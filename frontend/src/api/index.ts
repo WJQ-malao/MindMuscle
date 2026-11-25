@@ -243,3 +243,14 @@ export const chatApi = {
     }
   },
 }
+
+/** 个人资料：头像上传（裁剪后的 JPEG Blob） */
+export const userApi = {
+  uploadAvatar: (blob: Blob) => {
+    const form = new FormData()
+    form.append('file', blob, 'avatar.jpg')
+    return request.post('/user/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}

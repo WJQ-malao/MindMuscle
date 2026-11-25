@@ -1,31 +1,41 @@
 <template>
-  <div class="welcome-banner">Welcome to MindMuscle</div>
+  <div class="welcome-banner">
+    <div>
+      <div class="wb-title">Welcome to MindMuscle</div>
+      <div class="wb-sub">{{ greeting }}，{{ nickname }}，{{ isAdmin ? '平台运行一切正常' : '今天也要加油训练哦' }}</div>
+    </div>
+    <div class="wb-date">{{ today }}</div>
+  </div>
 
   <!-- ===== 管理员：平台运营视角 ===== -->
   <div v-if="isAdmin">
     <el-row :gutter="16">
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">注册用户</div>
-          <div class="value">{{ adminData.totalUsers ?? '-' }}</div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#eef4ff">👥</span><div>
+          <div class="label">注册用户</div>
+          <div class="value">{{ adminData.totalUsers ?? '-' }}</div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">训练打卡</div>
-          <div class="value">{{ adminData.totalCheckins ?? '-' }}</div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#e9faf0">✅</span><div>
+          <div class="label">训练打卡</div>
+          <div class="value">{{ adminData.totalCheckins ?? '-' }}</div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">生成计划</div>
-          <div class="value">{{ adminData.totalPlans ?? '-' }}</div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#f0ebff">📋</span><div>
+          <div class="label">生成计划</div>
+          <div class="value">{{ adminData.totalPlans ?? '-' }}</div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">知识文档</div>
-          <div class="value">{{ adminData.knowledgeFiles ?? '-' }}</div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#fff6e8">📚</span><div>
+          <div class="label">知识文档</div>
+          <div class="value">{{ adminData.knowledgeFiles ?? '-' }}</div></div></div></el-card>
       </el-col>
     </el-row>
 
     <el-card shadow="hover" style="margin-top: 16px">
       <template #header>
         <div class="admin-header">
-          <span>最近注册用户</span>
+          <span>🕘 最近注册用户</span>
           <router-link to="/knowledge" class="knowledge-link">📚 维护知识库 →</router-link>
         </div>
       </template>
@@ -47,40 +57,44 @@
   <div v-else>
     <el-row :gutter="16">
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">当前体重</div>
-          <div class="value">{{ latest.weightKg ?? '-' }} <span class="unit">kg</span></div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#eef4ff">⚖️</span><div>
+          <div class="label">当前体重</div>
+          <div class="value">{{ latest.weightKg ?? '-' }} <span class="unit">kg</span></div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">体脂率</div>
-          <div class="value">{{ latest.bodyFat ?? '-' }} <span class="unit">%</span></div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#f0ebff">📊</span><div>
+          <div class="label">体脂率</div>
+          <div class="value">{{ latest.bodyFat ?? '-' }} <span class="unit">%</span></div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">累计打卡</div>
-          <div class="value">{{ totalDays }} <span class="unit">天</span></div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#e9faf0">🏅</span><div>
+          <div class="label">累计打卡</div>
+          <div class="value">{{ totalDays }} <span class="unit">天</span></div></div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover"><div class="stat"><div class="label">近 7 天打卡</div>
-          <div class="value">{{ recent7Days }} <span class="unit">天</span></div></div></el-card>
+        <el-card shadow="hover"><div class="stat"><span class="stat-icon" style="background:#fff6e8">🔥</span><div>
+          <div class="label">近 7 天打卡</div>
+          <div class="value">{{ recent7Days }} <span class="unit">天</span></div></div></div></el-card>
       </el-col>
     </el-row>
 
     <el-row :gutter="16" style="margin-top: 16px">
       <el-col :span="14">
         <el-card shadow="hover">
-          <template #header>体重 / 体脂趋势（近 90 天）</template>
+          <template #header>📈 体重 / 体脂趋势（近 90 天）</template>
           <div ref="trendRef" class="chart"></div>
         </el-card>
       </el-col>
       <el-col :span="10">
         <el-card shadow="hover">
-          <template #header>肌群容量分布</template>
+          <template #header>🎯 肌群容量分布</template>
           <div ref="muscleRef" class="chart"></div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-card shadow="hover" style="margin-top: 16px">
-      <template #header>训练打卡热力图（近 6 个月）</template>
+      <template #header>🗓️ 训练打卡热力图（近 6 个月）</template>
       <div ref="heatmapRef" class="chart heatmap"></div>
     </el-card>
   </div>
@@ -92,6 +106,19 @@ import * as echarts from 'echarts'
 import { adminApi, dashboardApi } from '../api'
 
 const isAdmin = localStorage.getItem('role') === 'ADMIN'
+const nickname = localStorage.getItem('nickname') || '朋友'
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+const now = new Date()
+const greeting = (() => {
+  const h = now.getHours()
+  if (h < 6) return '夜深了'
+  if (h < 9) return '早上好'
+  if (h < 12) return '上午好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})()
+const today = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 星期${weekDays[now.getDay()]}`
 const adminData = ref<any>({})
 const trendRef = ref<HTMLElement>()
 const muscleRef = ref<HTMLElement>()
@@ -189,13 +216,28 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .welcome-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff; font-size: 18px; font-weight: 700;
-  padding: 16px 20px; border-radius: 12px; margin-bottom: 16px;
-  letter-spacing: 0.5px;
+  background: linear-gradient(120deg, #5b8cff 0%, #7a5af8 60%, #a55cf0 100%);
+  color: #fff;
+  padding: 20px 24px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8px 24px rgba(102, 108, 240, 0.35);
+}
+.wb-title { font-size: 19px; font-weight: 700; letter-spacing: 0.5px; }
+.wb-sub { font-size: 13px; opacity: 0.88; margin-top: 6px; }
+.wb-date { font-size: 13px; opacity: 0.88; white-space: nowrap; }
+
+.stat { display: flex; align-items: center; gap: 14px; }
+.stat-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
 }
 .stat .label { color: #999; font-size: 13px; }
-.stat .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+.stat .value { font-size: 26px; font-weight: 700; margin-top: 4px; color: #1f2329; }
 .stat .unit { font-size: 13px; color: #999; font-weight: 400; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; }
 .knowledge-link { color: #409eff; text-decoration: none; font-size: 13px; }

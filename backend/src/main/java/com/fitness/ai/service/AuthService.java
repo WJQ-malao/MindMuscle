@@ -57,6 +57,7 @@ public class AuthService {
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("nickname", user.getNickname());
+        result.put("avatar", user.getAvatar());
         result.put("roles", roles);
         result.put("role", roles.contains("ADMIN") ? "ADMIN" : (roles.isEmpty() ? "USER" : roles.get(0)));
         return result;

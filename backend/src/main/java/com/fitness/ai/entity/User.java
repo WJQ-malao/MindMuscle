@@ -20,5 +20,7 @@ public class User {
     private String role;
     /** 身高（cm），注册时可不填 */
     private Double heightCm;
+    /** 头像地址（/api/avatars/**），未设置时为 null */
+    private String avatar;
     private LocalDateTime createTime;
 }

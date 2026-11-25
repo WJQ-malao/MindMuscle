@@ -1,5 +1,9 @@
 <template>
   <div>
+    <div class="mm-page-header">
+      <h2>训练计划</h2>
+      <div class="sub">制定每周训练安排，完成一组点亮一格</div>
+    </div>
     <el-card shadow="hover">
       <!-- 一天一计划：计划始终为当前 ACTIVE 计划；上方日期选择器可切换查看任意一周，停留于选中的那天（历史周打卡只读） -->
       <div class="toolbar">
