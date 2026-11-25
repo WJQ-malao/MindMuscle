@@ -1,11 +1,11 @@
 <template>
-  <div class="login-page">
+  <div class="login-page" :class="{ 'splash-on': splash.show }">
     <!-- 漂浮装饰 -->
     <div class="shape s1" /><div class="shape s2" /><div class="shape s3" />
     <div class="float-card fc1" /><div class="float-card fc2" />
 
-    <!-- 左侧品牌视觉 -->
-    <aside class="brand">
+    <!-- 左侧品牌视觉（splash 出现时隐藏，避免过渡页淡出时透出登录表单） -->
+    <aside v-show="!splash.show" class="brand">
       <div class="brand-head">
         <div class="app-icon">🏋️</div>
         <span class="brand-name">MindMuscle</span>
@@ -22,8 +22,8 @@
       <div class="brand-foot">MindMuscle · 基于 SpringBoot 与 RAG 的个性化健身系统</div>
     </aside>
 
-    <!-- 右侧登录卡片 -->
-    <main class="panel">
+    <!-- 右侧登录卡片（splash 出现时隐藏） -->
+    <main v-show="!splash.show" class="panel">
       <div class="card">
         <h2 class="card-title">欢迎来到 MindMuscle</h2>
         <p class="card-sub">{{ isRegister ? '创建账号，开始你的健身之旅' : '登录以继续使用' }}</p>
@@ -219,6 +219,12 @@ function isMobile() {
 </script>
 
 <style scoped>
+/* 欢迎过渡期间隐藏底层一切内容，防止淡出时透出登录页 */
+.login-page.splash-on .shape,
+.login-page.splash-on .float-card {
+  visibility: hidden;
+}
+
 /* ===== 页面基底：浅色高级感 + 漂浮几何 ===== */
 .login-page {
   min-height: 100vh;
