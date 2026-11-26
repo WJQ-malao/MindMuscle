@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="更换头像" width="400px" align-center @closed="destroyCropper">
+  <el-dialog v-model="visible" title="更换头像" width="400px" align-center append-to-body @closed="destroyCropper">
     <div class="crop-box">
       <img v-show="rawUrl" ref="imgRef" :src="rawUrl" class="crop-img" alt="头像预览" />
       <div v-if="!rawUrl" class="crop-empty">
