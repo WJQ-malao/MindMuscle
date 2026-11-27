@@ -387,7 +387,9 @@ function isMobile() {
 /* 窄屏：隐藏左侧，保留浅色底与漂浮装饰 */
 @media (max-width: 900px) {
   .brand { display: none; }
-  .card { width: 92vw; }
+  /* 纵向flex中 百分比max-width 计算有兼容坑，窄屏改为撑满+上限的稳妥写法 */
+  .panel { align-items: stretch; padding: 16px; }
+  .card { width: auto; max-width: 400px; margin: 0 auto; }
   .panel-foot { display: none; }
 }
 </style>
